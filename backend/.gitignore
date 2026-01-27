@@ -7,3 +7,4 @@ gmail-token.json
 *.log
 .DS_Store
 RAILWAY_VARS_READY.txt
+gmail-token-dev.json
