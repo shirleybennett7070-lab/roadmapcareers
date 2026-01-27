@@ -30,34 +30,78 @@ export async function getGmailClient() {
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
   const redirectUri = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/oauth/callback';
 
+  console.log('🔍 Gmail config check:', {
+    hasClientId: !!clientId,
+    hasClientSecret: !!clientSecret,
+    hasTokenBase64: !!process.env.GMAIL_TOKEN_BASE64,
+    hasTokenJson: !!process.env.GMAIL_TOKEN_JSON,
+    hasTokenFile: existsSync(TOKEN_PATH)
+  });
+
   if (!clientId || !clientSecret) {
     throw new Error('GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET must be set in .env file');
   }
 
   oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  // Check if we have a token
-  if (existsSync(TOKEN_PATH)) {
-    const token = JSON.parse(readFileSync(TOKEN_PATH, 'utf8'));
-    oauth2Client.setCredentials(token);
-    
-    // Check if token is expired and refresh if needed
-    if (token.expiry_date && token.expiry_date < Date.now()) {
-      try {
-        const { credentials } = await oauth2Client.refreshAccessToken();
-        oauth2Client.setCredentials(credentials);
-        writeFileSync(TOKEN_PATH, JSON.stringify(credentials));
-      } catch (error) {
-        console.error('Error refreshing token:', error.message);
-        throw new Error('Token expired. Run "npm run auth-gmail" to re-authenticate');
-      }
+  // Check if we have a token from environment variable (Railway) or file (local)
+  let token;
+  if (process.env.GMAIL_TOKEN_BASE64) {
+    // Railway: token from base64 environment variable
+    try {
+      const tokenJson = Buffer.from(process.env.GMAIL_TOKEN_BASE64, 'base64').toString('utf8');
+      token = JSON.parse(tokenJson);
+      console.log('✅ Gmail token loaded from base64 environment variable');
+    } catch (error) {
+      console.error('❌ Error parsing GMAIL_TOKEN_BASE64:', error.message);
+      throw new Error('Invalid GMAIL_TOKEN_BASE64 environment variable');
     }
-    
-    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-    return { auth: oauth2Client, gmail };
+  } else if (process.env.GMAIL_TOKEN_JSON) {
+    // Railway: token from JSON environment variable (fallback)
+    try {
+      token = JSON.parse(process.env.GMAIL_TOKEN_JSON);
+      console.log('✅ Gmail token loaded from JSON environment variable');
+    } catch (error) {
+      console.error('❌ Error parsing GMAIL_TOKEN_JSON:', error.message);
+      throw new Error('Invalid GMAIL_TOKEN_JSON environment variable');
+    }
+  } else if (existsSync(TOKEN_PATH)) {
+    // Local: token from file
+    token = JSON.parse(readFileSync(TOKEN_PATH, 'utf8'));
+    console.log('✅ Gmail token loaded from file');
+  } else {
+    throw new Error('Not authenticated. Run "npm run auth-gmail" first to authorize Gmail access.');
   }
 
-  throw new Error('Not authenticated. Run "npm run auth-gmail" first to authorize Gmail access.');
+  if (!token || !token.refresh_token) {
+    console.error('❌ Invalid token structure:', JSON.stringify(token).substring(0, 100));
+    throw new Error('Invalid token: missing refresh_token');
+  }
+
+  oauth2Client.setCredentials(token);
+  
+  // Check if token is expired and refresh if needed
+  if (token.expiry_date && token.expiry_date < Date.now()) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(credentials);
+      
+      // Save refreshed token
+      if (process.env.GMAIL_TOKEN_JSON) {
+        // Railway: can't update env var, but refresh token is valid
+        console.log('Token refreshed (Railway environment)');
+      } else {
+        // Local: save to file
+        writeFileSync(TOKEN_PATH, JSON.stringify(credentials));
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error.message);
+      throw new Error('Token expired. Run "npm run auth-gmail" to re-authenticate');
+    }
+  }
+  
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  return { auth: oauth2Client, gmail };
 }
 
 /**
