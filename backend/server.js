@@ -94,11 +94,18 @@ app.listen(PORT, () => {
 
 /**
  * Email Processing Cron Job
- * - Production: Every 1 minute (TESTING)
- * - Development: Every 1 minute
+ * - Production ONLY: Every 1 minute (TESTING)
+ * - Development: DISABLED (to avoid duplicate emails with prod)
  */
 function startEmailCron() {
   const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Only run email cron in production to avoid duplicates
+  if (!isProduction) {
+    console.log('\n⏰ Email cron job DISABLED in development (production only)');
+    return;
+  }
+  
   const cronSchedule = '* * * * *'; // Every minute for testing
   const intervalText = 'every minute';
   
@@ -122,12 +129,4 @@ function startEmailCron() {
       console.error(`[${timestamp}] ❌ Cron error:`, error.message);
     }
   });
-  
-  // Run immediately on startup (optional - comment out if not wanted)
-  if (!isProduction) {
-    console.log('📧 Running initial email check...');
-    processInbox()
-      .then(result => console.log(`✅ Initial check: ${result.processed} processed, ${result.responded} responded`))
-      .catch(err => console.error('❌ Initial check failed:', err.message));
-  }
 }
