@@ -4,7 +4,7 @@ Add these to Railway's **Shared Variables**:
 
 ## Required - Google Sheets
 ```
-GOOGLE_SHEET_ID=1HmM_MmqH7WJbEKaYs8HJib8VuzxwpHplFsAzBsx_1kY
+GOOGLE_SHEET_ID=1QP1KwgqKVCIt2t7FA45YvVXbAtVcwJ-ADifksUNC-FM
 
 GOOGLE_CREDENTIALS_JSON=<paste the entire contents of backend/credentials.json as a single line>
 ```
@@ -56,7 +56,7 @@ You must share your Google Sheet with this email address:
 **roadmapcareers-sheets@roadmapcareers-1769485146.iam.gserviceaccount.com**
 
 Steps:
-1. Open your Google Sheet: https://docs.google.com/spreadsheets/d/1HmM_MmqH7WJbEKaYs8HJib8VuzxwpHplFsAzBsx_1kY/edit
+1. Open your Google Sheet: https://docs.google.com/spreadsheets/d/1QP1KwgqKVCIt2t7FA45YvVXbAtVcwJ-ADifksUNC-FM/edit
 2. Click "Share" button
 3. Add: roadmapcareers-sheets@roadmapcareers-1769485146.iam.gserviceaccount.com
 4. Give "Editor" permission
