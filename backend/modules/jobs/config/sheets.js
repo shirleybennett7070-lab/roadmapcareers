@@ -15,9 +15,16 @@ export async function getAuthClient() {
   if (auth) return auth;
 
   try {
-    // Try from backend root first, then from project root
-    const credPath = join(__dirname, '../../../credentials.json');
-    const credentials = JSON.parse(readFileSync(credPath, 'utf8'));
+    let credentials;
+    
+    // Try to load from environment variable first (for Railway/production)
+    if (process.env.GOOGLE_CREDENTIALS_JSON) {
+      credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+    } else {
+      // Fall back to credentials.json file (for local development)
+      const credPath = join(__dirname, '../../../credentials.json');
+      credentials = JSON.parse(readFileSync(credPath, 'utf8'));
+    }
     
     auth = new google.auth.GoogleAuth({
       credentials,
@@ -26,11 +33,10 @@ export async function getAuthClient() {
 
     return auth;
   } catch (error) {
-    console.error('Error loading credentials.json:', error.message);
-    console.log('\nMake sure you have:');
-    console.log('1. Created a Google Cloud Service Account');
-    console.log('2. Downloaded the JSON key file');
-    console.log('3. Saved it as "credentials.json" in the backend/ folder');
+    console.error('Error loading credentials:', error.message);
+    console.log('\nMake sure you have either:');
+    console.log('1. GOOGLE_CREDENTIALS_JSON environment variable set, OR');
+    console.log('2. credentials.json file in the backend/ folder');
     throw error;
   }
 }

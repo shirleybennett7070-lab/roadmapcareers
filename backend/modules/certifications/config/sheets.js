@@ -15,8 +15,16 @@ export async function getAuthClient() {
   if (auth) return auth;
 
   try {
-    const credPath = join(__dirname, '../../../credentials.json');
-    const credentials = JSON.parse(readFileSync(credPath, 'utf8'));
+    let credentials;
+    
+    // Try to load from environment variable first (for Railway/production)
+    if (process.env.GOOGLE_CREDENTIALS_JSON) {
+      credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+    } else {
+      // Fall back to credentials.json file (for local development)
+      const credPath = join(__dirname, '../../../credentials.json');
+      credentials = JSON.parse(readFileSync(credPath, 'utf8'));
+    }
     
     auth = new google.auth.GoogleAuth({
       credentials,
@@ -25,7 +33,7 @@ export async function getAuthClient() {
 
     return auth;
   } catch (error) {
-    console.error('Error loading credentials.json:', error.message);
+    console.error('Error loading credentials:', error.message);
     throw error;
   }
 }
