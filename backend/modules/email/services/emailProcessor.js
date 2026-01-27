@@ -194,6 +194,28 @@ export async function processEmail(email) {
   } else {
     console.log(`  ✓ Existing lead (Stage: ${lead.stage})`);
     
+    // Paid customers - ignore all emails (they've completed the funnel)
+    if (lead.stage === LEAD_STAGES.STAGE_6_PAID || lead.paymentStatus === 'completed') {
+      console.log('  ✓ Paid customer - ignoring (funnel completed)');
+      return { 
+        email: email.email, 
+        responded: false, 
+        stage: lead.stage,
+        note: 'Paid customer - no auto-reply'
+      };
+    }
+    
+    // Dropped leads - ignore
+    if (lead.stage === LEAD_STAGES.STAGE_8_DROPPED) {
+      console.log('  ✓ Dropped lead - ignoring');
+      return { 
+        email: email.email, 
+        responded: false, 
+        stage: lead.stage,
+        note: 'Dropped lead - no auto-reply'
+      };
+    }
+    
     // Stages that advance on reply:
     // - Stage 1 (jobs list) → Stage 2 (assessment offer)
     // - Stage 4 (soft pitch) → Stage 5 (training/certification offer)
@@ -206,7 +228,7 @@ export async function processEmail(email) {
       stage = getNextStage(lead.stage);
       console.log(`  → Advancing to: ${stage}`);
     } else {
-      // For Stage 2, 3 - don't auto-advance - website triggers next email
+      // For Stage 2, 3, 5 - don't auto-advance - website triggers next email
       console.log('  ℹ️  Reply received - no auto-advance (complete assessment on website)');
       
       // Mark email as read but don't send another email
