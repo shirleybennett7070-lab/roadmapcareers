@@ -130,12 +130,15 @@ export default function CertificationExam({ userInfo, setUserInfo, jobInfo, onCo
     setCertificateId(null);
   };
 
-  // DEV MODE: Quick test functions (only available in development)
-  // Check Vite's DEV flag, localhost, or dev subdomain on Netlify
+  // DEV MODE: Quick test functions (only available in development or with secret param)
+  // Check Vite's DEV flag, localhost, dev subdomain on Netlify, or secret URL param
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasTestSecret = urlParams.get('testmode') === 'rc2026pass';
   const isDev = import.meta.env.DEV || 
     window.location.hostname === 'localhost' || 
     window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.includes('-dev.netlify.app');
+    window.location.hostname.includes('-dev.netlify.app') ||
+    hasTestSecret;
   
   const devAutoPass = () => {
     // Auto-answer all questions correctly
