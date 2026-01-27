@@ -1,7 +1,5 @@
 import express from 'express';
 import { getLead, upsertLead, moveToStage } from '../email/services/leadsService.js';
-import { sendEmail } from '../email/config/gmail.js';
-import { getAssessmentReviewTemplate } from '../email/services/templates.js';
 
 const router = express.Router();
 
@@ -32,7 +30,6 @@ router.post('/complete', async (req, res) => {
 
     if (!lead) {
       console.log(`  ℹ️  Creating new lead for: ${email}`);
-      // Create a new lead if they don't exist
       lead = {
         email: email,
         name: 'Skill Assessment User',
@@ -43,48 +40,25 @@ router.post('/complete', async (req, res) => {
       };
     }
 
-    // Store answers in notes (you can expand this to store in a separate sheet if needed)
+    // Store answers in notes
     const answersNote = answers ? `\nSkill Assessment Answers: ${JSON.stringify(answers)}` : '';
 
-    // Update lead stage to SKILL_ASSESSMENT_COMPLETED and mark as done
+    // Calculate when to send the follow-up email
+    const pendingEmailTime = new Date(Date.now() + EMAIL_DELAY_MS).toISOString();
+    const delayMinutes = EMAIL_DELAY_MS / 60000;
+
+    // Update lead with scheduled email (cron job will send it)
     await upsertLead({
       ...lead,
       stage: moveToStage.skillAssessmentCompleted(),
       skillAssessmentCompleted: true,
+      pendingEmailTime: pendingEmailTime,
+      pendingEmailType: 'assessment_review',
       notes: `${lead.notes || ''}\nSkill assessment completed: ${new Date().toISOString()}${answersNote}`
     });
 
     console.log(`  ✓ Lead updated to SKILL_ASSESSMENT_COMPLETED`);
-
-    // Schedule assessment review email (soft pitch) with delay
-    const delayMinutes = EMAIL_DELAY_MS / 60000;
-    console.log(`  ⏱️  Scheduling assessment review in ${delayMinutes} minute(s)...`);
-    
-    // Send email after delay (non-blocking)
-    setTimeout(async () => {
-      try {
-        const template = await getAssessmentReviewTemplate(lead.name);
-        
-        if (template) {
-          await sendEmail(
-            email,
-            template.subject,
-            template.body
-          );
-
-          console.log(`  ✉️  Assessment review (soft pitch) sent to: ${email} (after ${delayMinutes} min delay)`);
-          
-          // Update stage to SOFT_PITCH_SENT after email sent
-          await upsertLead({
-            ...lead,
-            stage: moveToStage.softPitchSent(),
-            lastContact: new Date().toISOString()
-          });
-        }
-      } catch (err) {
-        console.error(`  ❌ Failed to send delayed email to ${email}:`, err.message);
-      }
-    }, EMAIL_DELAY_MS);
+    console.log(`  ⏱️  Follow-up email scheduled for: ${pendingEmailTime} (in ${delayMinutes} min)`);
 
     res.json({
       success: true,

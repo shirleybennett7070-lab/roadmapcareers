@@ -32,7 +32,7 @@ import certificationsRouter from './modules/certifications/routes.js';
 import paymentsRouter from './modules/payments/routes.js';
 
 // Import email processor for cron job
-import { processInbox } from './modules/email/services/emailProcessor.js';
+import { processInbox, processPendingEmails } from './modules/email/services/emailProcessor.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -109,8 +109,15 @@ function startEmailCron() {
     console.log(`\n[${timestamp}] 🔄 Cron: Processing emails...`);
     
     try {
-      const result = await processInbox();
-      console.log(`[${timestamp}] ✅ Cron complete: ${result.processed} processed, ${result.responded} responded`);
+      // Process incoming emails
+      const inboxResult = await processInbox();
+      console.log(`[${timestamp}] ✅ Inbox: ${inboxResult.processed} processed, ${inboxResult.responded} responded`);
+      
+      // Process scheduled/pending emails
+      const pendingResult = await processPendingEmails();
+      if (pendingResult.sent > 0) {
+        console.log(`[${timestamp}] ✅ Pending: ${pendingResult.sent} scheduled email(s) sent`);
+      }
     } catch (error) {
       console.error(`[${timestamp}] ❌ Cron error:`, error.message);
     }

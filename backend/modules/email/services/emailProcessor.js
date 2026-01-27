@@ -1,6 +1,6 @@
 import { readUnreadEmails, sendEmail, markAsRead } from '../config/gmail.js';
-import { getLead, upsertLead, LEAD_STAGES, getInitialStage, getNextStage, moveToStage } from './leadsService.js';
-import { getTemplateForStage } from './templates.js';
+import { getLead, upsertLead, LEAD_STAGES, getInitialStage, getNextStage, moveToStage, getLeadsWithPendingEmails } from './leadsService.js';
+import { getTemplateForStage, getSkillAssessmentOfferTemplate, getAssessmentReviewTemplate } from './templates.js';
 
 /**
  * Simplified email processor for Customer Service training funnel
@@ -257,5 +257,68 @@ export async function processEmail(email) {
   } catch (error) {
     console.error(`  ❌ Failed to send email:`, error.message);
     return { responded: false, stage: lead?.stage }; // Don't update stage if send failed
+  }
+}
+
+/**
+ * Process scheduled/pending emails
+ * Called by cron job to send emails that were scheduled for later
+ */
+export async function processPendingEmails() {
+  try {
+    const pendingLeads = await getLeadsWithPendingEmails();
+    
+    if (pendingLeads.length === 0) {
+      return { sent: 0 };
+    }
+    
+    console.log(`\n📬 Found ${pendingLeads.length} pending email(s) to send`);
+    
+    let sent = 0;
+    
+    for (const lead of pendingLeads) {
+      try {
+        console.log(`  → Sending ${lead.pendingEmailType} to ${lead.email}`);
+        
+        let template = null;
+        let newStage = lead.stage;
+        
+        // Get the appropriate template based on pending email type
+        if (lead.pendingEmailType === 'skill_assessment_offer') {
+          template = await getSkillAssessmentOfferTemplate(lead.name);
+        } else if (lead.pendingEmailType === 'assessment_review') {
+          template = await getAssessmentReviewTemplate(lead.name);
+          newStage = moveToStage.softPitchSent(); // Update stage after sending soft pitch
+        }
+        
+        if (template) {
+          await sendEmail(lead.email, template.subject, template.body);
+          console.log(`    ✉️  Sent: ${template.subject}`);
+          
+          // Clear the pending email and update stage if needed
+          await upsertLead({
+            ...lead,
+            stage: newStage,
+            pendingEmailTime: null,
+            pendingEmailType: null
+          });
+          
+          sent++;
+          
+          // Throttle between sends
+          if (sent < pendingLeads.length) {
+            await sleep(THROTTLE_DELAY_MS);
+          }
+        }
+      } catch (error) {
+        console.error(`    ❌ Failed to send to ${lead.email}:`, error.message);
+      }
+    }
+    
+    console.log(`  ✅ Sent ${sent}/${pendingLeads.length} pending email(s)`);
+    return { sent };
+  } catch (error) {
+    console.error('Error processing pending emails:', error.message);
+    return { sent: 0, error: error.message };
   }
 }

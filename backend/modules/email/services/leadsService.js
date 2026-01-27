@@ -67,7 +67,9 @@ const HEADERS = [
   'Payment Status',
   'Notes',
   'Assessment Completed',
-  'Skill Assessment Completed'
+  'Skill Assessment Completed',
+  'Pending Email Time',
+  'Pending Email Type'
 ];
 
 /**
@@ -121,7 +123,7 @@ export async function getLead(email) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${LEADS_SHEET_NAME}!A2:J`
+      range: `${LEADS_SHEET_NAME}!A2:L`
     });
 
     const rows = response.data.values || [];
@@ -139,7 +141,9 @@ export async function getLead(email) {
       paymentStatus: lead[6],
       notes: lead[7],
       assessmentCompleted: lead[8] === 'true' || lead[8] === true,
-      skillAssessmentCompleted: lead[9] === 'true' || lead[9] === true
+      skillAssessmentCompleted: lead[9] === 'true' || lead[9] === true,
+      pendingEmailTime: lead[10] || null,
+      pendingEmailType: lead[11] || null
     };
   } catch (error) {
     console.error('Error getting lead:', error.message);
@@ -166,7 +170,9 @@ export async function upsertLead(leadData) {
     leadData.paymentStatus || 'Unpaid',
     leadData.notes || '',
     leadData.assessmentCompleted ? 'true' : (existingLead?.assessmentCompleted ? 'true' : 'false'),
-    leadData.skillAssessmentCompleted ? 'true' : (existingLead?.skillAssessmentCompleted ? 'true' : 'false')
+    leadData.skillAssessmentCompleted ? 'true' : (existingLead?.skillAssessmentCompleted ? 'true' : 'false'),
+    leadData.pendingEmailTime !== undefined ? (leadData.pendingEmailTime || '') : (existingLead?.pendingEmailTime || ''),
+    leadData.pendingEmailType !== undefined ? (leadData.pendingEmailType || '') : (existingLead?.pendingEmailType || '')
   ];
 
   if (existingLead) {
@@ -213,7 +219,7 @@ export async function getAllLeads() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${LEADS_SHEET_NAME}!A2:J`
+      range: `${LEADS_SHEET_NAME}!A2:L`
     });
 
     const rows = response.data.values || [];
@@ -228,10 +234,26 @@ export async function getAllLeads() {
       paymentStatus: row[6],
       notes: row[7],
       assessmentCompleted: row[8] === 'true' || row[8] === true,
-      skillAssessmentCompleted: row[9] === 'true' || row[9] === true
+      skillAssessmentCompleted: row[9] === 'true' || row[9] === true,
+      pendingEmailTime: row[10] || null,
+      pendingEmailType: row[11] || null
     }));
   } catch (error) {
     console.error('Error getting leads:', error.message);
     return [];
   }
+}
+
+/**
+ * Get leads with pending emails that are ready to send
+ */
+export async function getLeadsWithPendingEmails() {
+  const allLeads = await getAllLeads();
+  const now = new Date();
+  
+  return allLeads.filter(lead => {
+    if (!lead.pendingEmailTime || !lead.pendingEmailType) return false;
+    const scheduledTime = new Date(lead.pendingEmailTime);
+    return scheduledTime <= now;
+  });
 }

@@ -9,7 +9,8 @@ export default function JobDetailsSidebar({ jobInfo, assessmentType = 'candidate
   // Create job details page URL
   const jobUrl = jobInfo?.originalUrl || jobInfo?.url || jobInfo?.applyUrl || '';
   const description = jobInfo?.description || '';
-  const jobDetailsUrl = `http://localhost:5173/job-details?job=${encodeURIComponent(jobInfo?.title || '')}&company=${encodeURIComponent(jobInfo?.company || '')}&pay=${encodeURIComponent(jobInfo?.pay || '')}&location=${encodeURIComponent(jobInfo?.location || '')}&type=${encodeURIComponent(jobInfo?.type || 'Customer Service')}&url=${encodeURIComponent(jobUrl)}&description=${encodeURIComponent(description)}`;
+  const baseUrl = window.location.origin;
+  const jobDetailsUrl = `${baseUrl}/job-details?job=${encodeURIComponent(jobInfo?.title || '')}&company=${encodeURIComponent(jobInfo?.company || '')}&pay=${encodeURIComponent(jobInfo?.pay || '')}&location=${encodeURIComponent(jobInfo?.location || '')}&type=${encodeURIComponent(jobInfo?.type || 'Customer Service')}&url=${encodeURIComponent(jobUrl)}&description=${encodeURIComponent(description)}`;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200 sticky top-6">

@@ -204,7 +204,7 @@ export default function CertificationExam({ userInfo, setUserInfo, jobInfo, onCo
                     </div>
                     <div className="pt-2">
                       <a 
-                        href={`http://localhost:5173/job-details?job=${encodeURIComponent(jobInfo.title)}&company=${encodeURIComponent(jobInfo.company)}&pay=${encodeURIComponent(jobInfo.pay)}&location=${encodeURIComponent(jobInfo.location)}&type=${encodeURIComponent(jobInfo.type || 'Customer Service')}`}
+                        href={`${window.location.origin}/job-details?job=${encodeURIComponent(jobInfo.title)}&company=${encodeURIComponent(jobInfo.company)}&pay=${encodeURIComponent(jobInfo.pay)}&location=${encodeURIComponent(jobInfo.location)}&type=${encodeURIComponent(jobInfo.type || 'Customer Service')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline transition-colors"

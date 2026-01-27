@@ -1,7 +1,5 @@
 import express from 'express';
 import { getLead, upsertLead, moveToStage } from '../email/services/leadsService.js';
-import { sendEmail } from '../email/config/gmail.js';
-import { getSkillAssessmentOfferTemplate } from '../email/services/templates.js';
 
 const router = express.Router();
 
@@ -32,7 +30,6 @@ router.post('/complete', async (req, res) => {
 
     if (!lead) {
       console.log(`  ℹ️  Creating new lead for: ${email}`);
-      // Create a new lead if they don't exist
       lead = {
         email: email,
         name: 'Assessment User',
@@ -43,37 +40,22 @@ router.post('/complete', async (req, res) => {
       };
     }
 
-    // Update lead stage to ASSESSMENT_COMPLETED and mark assessment as done
+    // Calculate when to send the follow-up email
+    const pendingEmailTime = new Date(Date.now() + EMAIL_DELAY_MS).toISOString();
+    const delayMinutes = EMAIL_DELAY_MS / 60000;
+
+    // Update lead with scheduled email (cron job will send it)
     await upsertLead({
       ...lead,
       stage: moveToStage.assessmentCompleted(),
       assessmentCompleted: true,
+      pendingEmailTime: pendingEmailTime,
+      pendingEmailType: 'skill_assessment_offer',
       notes: `${lead.notes || ''}\nCandidate assessment completed: ${new Date().toISOString()}`
     });
 
     console.log(`  ✓ Lead updated to ASSESSMENT_COMPLETED`);
-
-    // Schedule skill assessment offer email with delay
-    const delayMinutes = EMAIL_DELAY_MS / 60000;
-    console.log(`  ⏱️  Scheduling skill assessment offer in ${delayMinutes} minute(s)...`);
-    
-    // Send email after delay (non-blocking)
-    setTimeout(async () => {
-      try {
-        const template = await getSkillAssessmentOfferTemplate(lead.name);
-        
-        if (template) {
-          await sendEmail(
-            email,
-            template.subject,
-            template.body
-          );
-          console.log(`  ✉️  Skill assessment offer sent to: ${email} (after ${delayMinutes} min delay)`);
-        }
-      } catch (err) {
-        console.error(`  ❌ Failed to send delayed email to ${email}:`, err.message);
-      }
-    }, EMAIL_DELAY_MS);
+    console.log(`  ⏱️  Follow-up email scheduled for: ${pendingEmailTime} (in ${delayMinutes} min)`);
 
     res.json({
       success: true,
