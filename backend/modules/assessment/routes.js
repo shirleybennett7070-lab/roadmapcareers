@@ -3,8 +3,10 @@ import { getLead, upsertLead, moveToStage } from '../email/services/leadsService
 
 const router = express.Router();
 
-// Delay before sending follow-up email (1 min for testing, normally 1 hour in prod)
-const EMAIL_DELAY_MS = 60 * 1000; // 1 minute for testing
+// Delay before sending follow-up email (3 hours in prod, 1 min in dev)
+const EMAIL_DELAY_MS = process.env.NODE_ENV === 'production' 
+  ? 3 * 60 * 60 * 1000  // 3 hours
+  : 60 * 1000;          // 1 minute
 
 /**
  * POST /api/assessment/complete

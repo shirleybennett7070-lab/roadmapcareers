@@ -94,12 +94,13 @@ app.listen(PORT, () => {
 
 /**
  * Email Processing Cron Job
- * - Production: Every 1 minute (TESTING)
+ * - Production: Every 3 hours
  * - Development: Every 1 minute (separate sheet)
  */
 function startEmailCron() {
-  const cronSchedule = '* * * * *'; // Every minute for testing
-  const intervalText = 'every minute';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cronSchedule = isProduction ? '0 */3 * * *' : '* * * * *';
+  const intervalText = isProduction ? 'every 3 hours' : 'every minute';
   
   console.log(`\n⏰ Email cron job scheduled: ${intervalText} (${cronSchedule})`);
   
