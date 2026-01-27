@@ -6,8 +6,77 @@ import {
   hasEmailPassed,
   verifyCertificate
 } from './services/certificationsService.js';
+import { getSheetsClient, SHEET_ID, CERTIFICATIONS_SHEET_NAME } from './config/sheets.js';
 
 const router = express.Router();
+
+/**
+ * POST /api/certifications/setup
+ * Initialize the Certifications sheet with headers
+ */
+router.post('/setup', async (req, res) => {
+  try {
+    const sheets = await getSheetsClient();
+
+    // Check if the "Certifications" tab exists
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SHEET_ID,
+    });
+
+    const certTab = spreadsheet.data.sheets.find(
+      sheet => sheet.properties.title === CERTIFICATIONS_SHEET_NAME
+    );
+
+    if (!certTab) {
+      // Create the new tab
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: CERTIFICATIONS_SHEET_NAME,
+              }
+            }
+          }]
+        }
+      });
+    }
+
+    // Create header row
+    const headers = [
+      'Timestamp', 'Email', 'Full Name', 'Phone', 'Job Title', 'Job Company',
+      'Score', 'Total Questions', 'Passed', 'Payment Status', 'Token',
+      'Certificate ID', 'Job Pay', 'Job Location', 'Job Type'
+    ];
+
+    // Check if sheet already has headers
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${CERTIFICATIONS_SHEET_NAME}!A1:O1`,
+    });
+
+    if (!existingData.data.values || existingData.data.values.length === 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `${CERTIFICATIONS_SHEET_NAME}!A1:O1`,
+        valueInputOption: 'RAW',
+        resource: { values: [headers] },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Certifications sheet initialized'
+    });
+  } catch (error) {
+    console.error('Error setting up certifications sheet:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Save exam result
 router.post('/exam-result', async (req, res) => {

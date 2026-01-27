@@ -1,8 +1,27 @@
 import express from 'express';
 import { fetchAllJobs } from './services/jobApis.js';
-import { addJobs, getAllJobs } from './services/sheetsService.js';
+import { addJobs, getAllJobs, initializeSheet } from './services/sheetsService.js';
 
 const router = express.Router();
+
+/**
+ * POST /api/jobs/setup
+ * Initialize the Jobs sheet with headers
+ */
+router.post('/setup', async (req, res) => {
+  try {
+    await initializeSheet();
+    res.json({
+      success: true,
+      message: 'Jobs sheet initialized'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 /**
  * GET /api/jobs
