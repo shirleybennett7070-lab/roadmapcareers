@@ -16,7 +16,27 @@ const THROTTLE_DELAY_MS = 1500; // 1.5 seconds between each send
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Group emails by sender address to avoid sending multiple responses
+ * to the same person in a single batch
+ */
+function groupEmailsBySender(emails) {
+  const grouped = new Map();
+  
+  for (const email of emails) {
+    const senderEmail = email.email.toLowerCase();
+    
+    if (!grouped.has(senderEmail)) {
+      grouped.set(senderEmail, []);
+    }
+    grouped.get(senderEmail).push(email);
+  }
+  
+  return grouped;
+}
+
+/**
  * Process all unread emails with throttling for high volume
+ * Deduplicates by sender - only sends one response per unique sender
  */
 export async function processInbox() {
   try {
@@ -29,41 +49,78 @@ export async function processInbox() {
       return { processed: 0, responded: 0 };
     }
     
-    console.log(`Found ${emails.length} new email(s)`);
-    if (emails.length > 10) {
+    // Group emails by sender to avoid duplicate responses
+    const emailsBySender = groupEmailsBySender(emails);
+    const uniqueSenders = emailsBySender.size;
+    
+    console.log(`Found ${emails.length} new email(s) from ${uniqueSenders} unique sender(s)`);
+    
+    if (uniqueSenders !== emails.length) {
+      console.log(`📋 Deduplication: processing 1 email per sender (${emails.length - uniqueSenders} duplicate(s) will be marked read only)`);
+    }
+    
+    if (uniqueSenders > 10) {
       console.log(`⏱️  Throttling enabled - ${THROTTLE_DELAY_MS}ms delay between sends`);
     }
     
     let responded = 0;
     let failed = 0;
+    let senderIndex = 0;
     
-    for (let i = 0; i < emails.length; i++) {
-      const email = emails[i];
+    for (const [senderEmail, senderEmails] of emailsBySender) {
+      senderIndex++;
+      
+      // Sort by date descending to process the most recent email first
+      senderEmails.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      const primaryEmail = senderEmails[0];
+      const duplicateEmails = senderEmails.slice(1);
+      
       try {
-        console.log(`\n[${i + 1}/${emails.length}] Processing...`);
+        console.log(`\n[${senderIndex}/${uniqueSenders}] Processing from: ${senderEmail}`);
         
-        const result = await processEmail(email);
+        if (duplicateEmails.length > 0) {
+          console.log(`  ℹ️  ${duplicateEmails.length} additional email(s) from same sender will be marked read`);
+        }
+        
+        const result = await processEmail(primaryEmail);
         if (result.responded) {
           responded++;
           
           // Throttle: wait before sending next email to avoid rate limits
-          if (i < emails.length - 1) {
+          if (senderIndex < uniqueSenders) {
             await sleep(THROTTLE_DELAY_MS);
           }
         }
         
-        // Mark as read after processing
-        await markAsRead(email.id);
+        // Mark the primary email as read
+        await markAsRead(primaryEmail.id);
+        
+        // Mark all duplicate emails from same sender as read (without processing)
+        for (const dupEmail of duplicateEmails) {
+          await markAsRead(dupEmail.id);
+        }
       } catch (error) {
-        console.error(`Error processing email from ${email.email}:`, error.message);
+        console.error(`Error processing email from ${senderEmail}:`, error.message);
         failed++;
+        
+        // Still try to mark all emails from this sender as read
+        for (const email of senderEmails) {
+          try {
+            await markAsRead(email.id);
+          } catch (markError) {
+            // Ignore errors when marking as read
+          }
+        }
       }
     }
     
-    console.log(`\n✅ Batch complete: ${responded} sent, ${failed} failed, ${emails.length - responded - failed} skipped`);
+    console.log(`\n✅ Batch complete: ${responded} sent, ${failed} failed, ${uniqueSenders - responded - failed} skipped`);
+    console.log(`   (${emails.length} total emails processed, ${emails.length - uniqueSenders} duplicates auto-marked read)`);
     
     return {
       processed: emails.length,
+      uniqueSenders,
       responded,
       failed
     };
