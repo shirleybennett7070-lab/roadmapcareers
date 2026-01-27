@@ -6,3 +6,4 @@ credentials.json
 gmail-token.json
 *.log
 .DS_Store
+RAILWAY_VARS_READY.txt
