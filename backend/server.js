@@ -94,18 +94,10 @@ app.listen(PORT, () => {
 
 /**
  * Email Processing Cron Job
- * - Production ONLY: Every 1 minute (TESTING)
- * - Development: DISABLED (to avoid duplicate emails with prod)
+ * - Production: Every 1 minute (TESTING)
+ * - Development: Every 1 minute (separate sheet)
  */
 function startEmailCron() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  // Only run email cron in production to avoid duplicates
-  if (!isProduction) {
-    console.log('\n⏰ Email cron job DISABLED in development (production only)');
-    return;
-  }
-  
   const cronSchedule = '* * * * *'; // Every minute for testing
   const intervalText = 'every minute';
   
