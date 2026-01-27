@@ -5,6 +5,7 @@ import {
   handleWebhook 
 } from './services/paymentService.js';
 import { getExamResultByToken, updatePaymentStatus } from '../certifications/services/certificationsService.js';
+import { STRIPE_CONFIG } from './config/stripe.js';
 
 const router = express.Router();
 
@@ -136,11 +137,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
 /**
  * GET /api/payments/config
- * Get Stripe publishable key for frontend
+ * Get Stripe publishable key and pricing for frontend
  */
 router.get('/config', (req, res) => {
   res.json({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    certificationPrice: STRIPE_CONFIG.certificationPrice / 100, // Convert cents to dollars
   });
 });
 

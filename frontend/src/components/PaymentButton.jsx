@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { API_URL } from '../config/api';
+import { usePricing, formatPrice } from '../hooks/usePricing';
 
 export default function PaymentButton({ token, examResult, className }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { pricing } = usePricing();
+  const price = pricing?.certificationPrice ?? 1;
 
   const handlePayment = async () => {
     try {
@@ -54,7 +57,7 @@ export default function PaymentButton({ token, examResult, className }) {
             Processing Payment...
           </span>
         ) : (
-          'Download Certificate - $9.00'
+          `Download Certificate - ${formatPrice(price)}`
         )}
       </button>
       

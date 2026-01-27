@@ -131,7 +131,11 @@ export default function CertificationExam({ userInfo, setUserInfo, jobInfo, onCo
   };
 
   // DEV MODE: Quick test functions (only available in development)
-  const isDev = import.meta.env.DEV;
+  // Check Vite's DEV flag, localhost, or dev subdomain on Netlify
+  const isDev = import.meta.env.DEV || 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.includes('-dev.netlify.app');
   
   const devAutoPass = () => {
     // Auto-answer all questions correctly

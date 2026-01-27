@@ -1,4 +1,8 @@
+import { usePricing, formatPrice } from '../hooks/usePricing';
+
 export default function PricingCards({ jobInfo, onEnroll, onBack }) {
+  const { pricing, loading } = usePricing();
+  const price = pricing?.certificationPrice ?? 1;
   // Create prep page URL with job info
   const prepUrl = jobInfo ? 
     `/certification/prep?job=${encodeURIComponent(jobInfo.title)}&company=${encodeURIComponent(jobInfo.company)}&pay=${encodeURIComponent(jobInfo.pay)}&location=${encodeURIComponent(jobInfo.location)}&type=${encodeURIComponent(jobInfo.type)}` 
@@ -58,7 +62,7 @@ export default function PricingCards({ jobInfo, onEnroll, onBack }) {
                 <h3 className="text-2xl font-bold text-gray-900">Take the Certification Exam</h3>
                 <div>
                   <span className="text-gray-500 line-through text-sm mr-2">$20</span>
-                  <span className="text-2xl font-bold text-gray-900">$9</span>
+                  <span className="text-2xl font-bold text-gray-900">{formatPrice(price)}</span>
                 </div>
               </div>
               <p className="text-gray-600 mb-4">
@@ -122,7 +126,7 @@ export default function PricingCards({ jobInfo, onEnroll, onBack }) {
                 onClick={onEnroll}
                 className="bg-gray-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
               >
-                Take Exam - $9
+                Take Exam - {formatPrice(price)}
               </button>
               <p className="text-xs text-gray-500 mt-3">
                 Payment is processed only after passing the exam.<br />
