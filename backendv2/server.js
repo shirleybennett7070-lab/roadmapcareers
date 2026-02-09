@@ -30,7 +30,6 @@ import assessmentRouter from './modules/assessment/routes.js';
 import skillAssessmentRouter from './modules/skillAssessment/routes.js';
 import certificationsRouter from './modules/certifications/routes.js';
 import paymentsRouter from './modules/payments/routes.js';
-import adminRouter from './modules/admin/routes.js';
 
 // Import email processor for cron job
 import { processInbox, processPendingEmails } from './modules/email/services/emailProcessor.js';
@@ -57,7 +56,6 @@ app.use('/api/assessment', assessmentRouter);
 app.use('/api/skill-assessment', skillAssessmentRouter);
 app.use('/api/certifications', certificationsRouter);
 app.use('/api/payments', paymentsRouter);
-app.use('/api/admin', adminRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -96,13 +94,13 @@ app.listen(PORT, () => {
 
 /**
  * Email Processing Cron Job
- * - Production: Every 3 hours
+ * - Production: Every 1 hour
  * - Development: Every 1 minute (separate sheet)
  */
 function startEmailCron() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const cronSchedule = isProduction ? '0 */3 * * *' : '* * * * *';
-  const intervalText = isProduction ? 'every 3 hours' : 'every minute';
+  const cronSchedule = isProduction ? '0 * * * *' : '* * * * *';
+  const intervalText = isProduction ? 'every hour' : 'every minute';
   
   console.log(`\n⏰ Email cron job scheduled: ${intervalText} (${cronSchedule})`);
   

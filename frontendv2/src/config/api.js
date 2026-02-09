@@ -7,12 +7,12 @@ function getApiUrl() {
     return 'http://localhost:3000';
   }
   
-  // Dev environment (Cloudflare Pages)
+  // Dev environment (Cloudflare Pages or GitHub Pages)
   if (hostname.includes('roadmapcareers-dev') || hostname.includes('.github.io')) {
     return 'https://roadmapcareers-development.up.railway.app';
   }
   
-  // Production (default)
+  // Production (custom domain or default)
   return 'https://roadmapcareers-production.up.railway.app';
 }
 

@@ -32,235 +32,32 @@ function sanitizeHTML(html) {
   return text;
 }
 
-// Email domain extraction regex
-const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b/g;
+// Technical keywords to EXCLUDE
+const TECHNICAL_KEYWORDS = [
+  'developer', 'engineer', 'programmer', 'software', 'coding', 'python', 'java',
+  'javascript', 'react', 'node', 'backend', 'frontend', 'fullstack', 'devops',
+  'architect', 'data scientist', 'machine learning', 'ai engineer', 'cloud',
+  'aws', 'kubernetes', 'sql', 'database', 'system admin', 'network', 'security',
+  'blockchain', 'mobile dev', 'ios', 'android', 'qa engineer', 'test automation'
+];
 
-// Website URL extraction regex
-const WEBSITE_REGEX = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/g;
+// Entry-level keywords to INCLUDE
+const ENTRY_LEVEL_KEYWORDS = [
+  'entry', 'junior', 'associate', 'assistant', 'coordinator', 'representative',
+  'support', 'admin', 'customer service', 'sales', 'marketing', 'social media',
+  'content writer', 'data entry', 'virtual assistant', 'recruiter', 'hr',
+  'account manager', 'project coordinator', 'operations', 'executive assistant',
+  'bookkeeper', 'transcription', 'moderator', 'community manager', 'specialist',
+  'analyst', 'copywriter', 'editor', 'researcher', 'scheduler', 'receptionist'
+];
 
-// Social media patterns
-const LINKEDIN_REGEX = /linkedin\.com\/company\/([a-zA-Z0-9-]+)/gi;
-const TWITTER_REGEX = /twitter\.com\/([a-zA-Z0-9_]+)/gi;
-
-/**
- * Extract company domain from job description using multiple strategies
- */
-function extractCompanyDomain(text, companyName = '', jobUrl = '') {
-  if (!text && !companyName && !jobUrl) return null;
-  
-  const combinedText = `${text || ''} ${companyName || ''} ${jobUrl || ''}`.toLowerCase();
-  
-  // Strategy 1: Extract email domain
-  const emailDomain = extractEmailDomain(text);
-  if (emailDomain) return emailDomain;
-  
-  // Strategy 2: Extract website URL from description
-  const websiteDomain = extractWebsiteFromText(combinedText);
-  if (websiteDomain) return websiteDomain;
-  
-  // Strategy 3: Parse job URL for company domain
-  const urlDomain = extractDomainFromJobUrl(jobUrl);
-  if (urlDomain) return urlDomain;
-  
-  // Strategy 4: Extract from LinkedIn company page
-  const linkedinDomain = extractFromLinkedIn(combinedText);
-  if (linkedinDomain) return linkedinDomain;
-  
-  // Strategy 5: Guess domain from company name
-  const guessedDomain = guessDomainFromCompanyName(companyName);
-  if (guessedDomain) return guessedDomain;
-  
-  return null;
-}
-
-/**
- * Extract company email domain from job description
- */
-function extractEmailDomain(text) {
-  if (!text) return null;
-  
-  const matches = text.match(EMAIL_REGEX);
-  if (!matches || matches.length === 0) return null;
-  
-  // Extract domain from the first email found
-  const email = matches[0];
-  const domain = email.split('@')[1];
-  
-  // Filter out common email providers (we want company domains)
-  const genericProviders = [
-    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 
-    'aol.com', 'icloud.com', 'mail.com', 'protonmail.com',
-    'live.com', 'msn.com', 'ymail.com', 'inbox.com'
-  ];
-  
-  if (genericProviders.includes(domain.toLowerCase())) {
-    // Try to find another email that isn't generic
-    for (const match of matches) {
-      const d = match.split('@')[1];
-      if (!genericProviders.includes(d.toLowerCase())) {
-        return d;
-      }
-    }
-    return null;
-  }
-  
-  return domain;
-}
-
-/**
- * Extract website domain from text (looks for "visit us at", "website:", etc.)
- */
-function extractWebsiteFromText(text) {
-  if (!text) return null;
-  
-  // Look for common website indicators
-  const websiteIndicators = [
-    /(?:visit us at|website|site|homepage|web)[:\s]+(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi,
-    /(?:apply at|apply online at)[:\s]+(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi,
-    /(?:learn more at)[:\s]+(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi
-  ];
-  
-  for (const regex of websiteIndicators) {
-    const match = regex.exec(text);
-    if (match && match[1]) {
-      const domain = cleanDomain(match[1]);
-      if (isValidCompanyDomain(domain)) {
-        return domain;
-      }
-    }
-  }
-  
-  // Fallback: Look for any URL that might be a company website
-  const urlMatches = text.match(WEBSITE_REGEX);
-  if (urlMatches && urlMatches.length > 0) {
-    for (const url of urlMatches) {
-      const domain = cleanDomain(url.replace(/https?:\/\//, '').replace(/www\./, ''));
-      if (isValidCompanyDomain(domain)) {
-        return domain;
-      }
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Extract domain from job posting URL
- */
-function extractDomainFromJobUrl(url) {
-  if (!url) return null;
-  
-  try {
-    // Parse URL to get hostname
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.replace('www.', '');
-    
-    // Filter out job boards (we want company domains)
-    const jobBoards = [
-      'indeed.com', 'linkedin.com', 'glassdoor.com', 'monster.com',
-      'ziprecruiter.com', 'simplyhired.com', 'careerbuilder.com',
-      'remoteok.com', 'remotive.com', 'weworkremotely.com',
-      'adzuna.com', 'jooble.org', 'wellfound.com', 'angel.co',
-      'greenhouse.io', 'lever.co', 'workday.com', 'icims.com',
-      'jobvite.com', 'smartrecruiters.com', 'breezy.hr'
-    ];
-    
-    if (jobBoards.some(board => hostname.includes(board))) {
-      return null;
-    }
-    
-    return hostname;
-  } catch (e) {
-    return null;
-  }
-}
-
-/**
- * Extract from LinkedIn company page URL
- */
-function extractFromLinkedIn(text) {
-  if (!text) return null;
-  
-  const match = LINKEDIN_REGEX.exec(text);
-  if (match && match[1]) {
-    // LinkedIn company slug usually matches domain
-    const slug = match[1].toLowerCase();
-    // Could potentially map this to actual domain, but for now return null
-    // since we can't reliably convert LinkedIn slug to company domain
-    return null;
-  }
-  
-  return null;
-}
-
-/**
- * Guess domain from company name
- */
-function guessDomainFromCompanyName(companyName) {
-  if (!companyName || companyName.length < 3) return null;
-  
-  // Clean company name
-  let cleanName = companyName.toLowerCase()
-    .replace(/\s+/g, '')  // Remove spaces
-    .replace(/[^a-z0-9]/g, '')  // Remove special chars
-    .replace(/inc|llc|ltd|corp|corporation|company|co\b/g, '');  // Remove suffixes
-  
-  if (cleanName.length < 3) return null;
-  
-  // Common domain patterns - mark as "guessed" so we know it's not verified
-  const possibleDomains = [
-    `${cleanName}.com`,
-    `${cleanName}.io`,
-    `${cleanName}hq.com`
-  ];
-  
-  // Return first guess with marker that it's guessed
-  return `${possibleDomains[0]} (guessed)`;
-}
-
-/**
- * Clean and normalize domain
- */
-function cleanDomain(domain) {
-  if (!domain) return '';
-  
-  return domain
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .replace(/\/.*$/, '')  // Remove path
-    .replace(/:\d+$/, '')  // Remove port
-    .trim();
-}
-
-/**
- * Check if domain looks like a valid company domain
- */
-function isValidCompanyDomain(domain) {
-  if (!domain || domain.length < 4) return false;
-  
-  // Must have at least one dot and valid TLD
-  const parts = domain.split('.');
-  if (parts.length < 2) return false;
-  
-  const tld = parts[parts.length - 1];
-  const validTLDs = ['com', 'io', 'co', 'net', 'org', 'ai', 'tech', 'app', 'dev'];
-  
-  if (!validTLDs.includes(tld)) return false;
-  
-  // Filter out obvious non-company domains
-  const invalidPatterns = [
-    'example.com', 'test.com', 'localhost',
-    'facebook.com', 'twitter.com', 'instagram.com',
-    'youtube.com', 'google.com', 'apple.com'
-  ];
-  
-  if (invalidPatterns.some(pattern => domain.includes(pattern))) {
-    return false;
-  }
-  
-  return true;
-}
+// Non-technical job categories
+const NON_TECHNICAL_CATEGORIES = [
+  'customer support', 'sales', 'marketing', 'writing', 'design', 'admin',
+  'human resources', 'finance', 'business', 'operations', 'legal', 'teaching',
+  'copywriting', 'content', 'management', 'consulting', 'project management',
+  'accounting', 'communication', 'recruitment'
+];
 
 /**
  * Check if a job is in English and has good description
@@ -286,27 +83,38 @@ function isEnglishWithGoodDescription(job) {
 }
 
 /**
- * Check if a job is remote (V2: Accept all remote jobs, not just entry-level)
+ * Check if a job is non-technical and entry-level
  */
-function isRemoteJob(job) {
+function isNonTechnicalEntryLevel(job) {
   const title = (job.title || '').toLowerCase();
   const description = (job.description || '').toLowerCase();
-  const location = (job.location || '').toLowerCase();
+  const category = (job.category || '').toLowerCase();
+  const combined = `${title} ${description} ${category}`;
   
-  // Must be remote
-  const isRemote = location.includes('remote') || 
-                   title.includes('remote') || 
-                   description.includes('remote') ||
-                   description.includes('work from home') ||
-                   location.includes('anywhere');
+  // Exclude technical jobs
+  const isTechnical = TECHNICAL_KEYWORDS.some(keyword => 
+    title.includes(keyword) || combined.includes(keyword)
+  );
   
-  return isRemote;
+  if (isTechnical) return false;
+  
+  // Include entry-level positions
+  const isEntryLevel = ENTRY_LEVEL_KEYWORDS.some(keyword => 
+    combined.includes(keyword)
+  );
+  
+  // Or jobs in non-technical categories
+  const isNonTechCategory = NON_TECHNICAL_CATEGORIES.some(cat =>
+    category.includes(cat)
+  );
+  
+  return isEntryLevel || isNonTechCategory;
 }
 
 /**
  * Fetch jobs from RemoteOK (free, no API key required)
  */
-export async function fetchRemoteOKJobs(limit = 50) {
+export async function fetchRemoteOKJobs(limit = 20) {
   try {
     console.log('Fetching jobs from RemoteOK...');
     const response = await axios.get('https://remoteok.com/api', {
@@ -318,15 +126,15 @@ export async function fetchRemoteOKJobs(limit = 50) {
     // First item is just metadata, skip it
     const jobs = response.data.slice(1);
     
-    // V2: Filter for ALL remote jobs with good descriptions
+    // Filter for non-technical entry-level jobs in English with good descriptions
     const filtered = jobs.filter(job => {
       const mapped = {
         title: job.position,
         description: job.description || '',
-        location: 'Remote',
+        category: job.tags?.[0] || '',
         company: job.company
       };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
+      return isNonTechnicalEntryLevel(mapped) && isEnglishWithGoodDescription(mapped);
     }).slice(0, limit);
 
     return filtered.map(job => ({
@@ -338,10 +146,9 @@ export async function fetchRemoteOKJobs(limit = 50) {
       salaryRange: job.salary_min ? `$${job.salary_min} - $${job.salary_max}` : 'Not specified',
       location: 'Remote',
       originalUrl: job.url,
-      datePosted: job.date ? new Date(job.date * 1000).toISOString() : new Date().toISOString(), // Fix: Handle invalid dates
+      datePosted: new Date(job.date * 1000).toISOString(),
       source: 'RemoteOK',
-      category: job.tags?.[0] || 'General',
-      companyEmailDomain: extractCompanyDomain(job.description, job.company, job.url)
+      category: job.tags?.[0] || 'General'
     }));
   } catch (error) {
     console.error('Error fetching from RemoteOK:', error.message);
@@ -351,30 +158,28 @@ export async function fetchRemoteOKJobs(limit = 50) {
 
 /**
  * Fetch jobs from Remotive API (free, no API key required)
- * V2: Increased limit for high volume
  */
-export async function fetchRemotiveJobs(limit = 200) {
+export async function fetchRemotiveJobs(limit = 20) {
   try {
     console.log('Fetching jobs from Remotive...');
     // Fetch more jobs to filter from
     const response = await axios.get('https://remotive.com/api/remote-jobs', {
       params: {
-        limit: 200 // Increased from 100
-      },
-      timeout: 10000 // Add 10 second timeout
+        limit: 100
+      }
     });
 
     const jobs = response.data.jobs || [];
     
-    // V2: Filter for ALL remote jobs with good descriptions
+    // Filter for non-technical entry-level jobs in English with good descriptions
     const filtered = jobs.filter(job => {
       const mapped = {
         title: job.title,
         description: job.description || '',
-        location: 'Remote',
+        category: job.category || '',
         company: job.company_name
       };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
+      return isNonTechnicalEntryLevel(mapped) && isEnglishWithGoodDescription(mapped);
     }).slice(0, limit);
 
     return filtered.map(job => ({
@@ -388,8 +193,7 @@ export async function fetchRemotiveJobs(limit = 200) {
       originalUrl: job.url,
       datePosted: job.publication_date,
       source: 'Remotive',
-      category: job.category || 'General',
-      companyEmailDomain: extractCompanyDomain(job.description, job.company_name, job.url)
+      category: job.category || 'General'
     }));
   } catch (error) {
     console.error('Error fetching from Remotive:', error.message);
@@ -399,9 +203,8 @@ export async function fetchRemotiveJobs(limit = 200) {
 
 /**
  * Fetch jobs from Adzuna (requires API key, 1000 calls/month free)
- * V2: Fetch multiple pages for high volume
  */
-export async function fetchAdzunaJobs(country = 'us', limit = 500) {
+export async function fetchAdzunaJobs(country = 'us', limit = 20) {
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
 
@@ -411,57 +214,50 @@ export async function fetchAdzunaJobs(country = 'us', limit = 500) {
   }
 
   try {
-    console.log('Fetching REMOTE jobs from Adzuna (targeting high volume)...');
+    console.log('Fetching entry-level non-technical REMOTE jobs from Adzuna...');
     
-    const allJobs = [];
-    
-    // Fetch multiple pages (50 jobs per page, fetch up to 10 pages = 500 jobs)
-    for (let page = 1; page <= 10; page++) {
-      try {
-        const response = await axios.get(
-          `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}`,
-          {
-            params: {
-              app_id: appId,
-              app_key: appKey,
-              results_per_page: 50,
-              what: 'remote work from home',
-              location0: 'US'
-            }
-          }
-        );
-
-        const jobs = response.data.results || [];
-        allJobs.push(...jobs);
-        
-        console.log(`Adzuna page ${page}: ${jobs.length} jobs`);
-        
-        if (jobs.length < 50) break; // No more pages
-      } catch (err) {
-        console.error(`Adzuna page ${page} failed:`, err.message);
-        break;
+    // Fetch remote customer service jobs
+    const response = await axios.get(
+      `https://api.adzuna.com/v1/api/jobs/${country}/search/1`,
+      {
+        params: {
+          app_id: appId,
+          app_key: appKey,
+          results_per_page: 50,
+          what: 'customer service remote',
+          where: 'remote'
+        }
       }
-    }
+    );
+
+    const jobs = response.data.results || [];
     
-    console.log(`Adzuna: Found ${allJobs.length} total jobs`);
+    console.log(`Adzuna: Found ${jobs.length} total jobs`);
     
-    // V2: More lenient remote filter
-    const filtered = allJobs.filter(job => {
-      const title = (job.title || '').toLowerCase();
-      const description = (job.description || '').toLowerCase();
-      const location = (job.location?.display_name || '').toLowerCase();
-      
-      const hasRemote = title.includes('remote') || 
-                       title.includes('work from home') ||
-                       description.includes('remote') || 
-                       description.includes('work from home') ||
-                       location.includes('remote');
-      
-      return hasRemote && isEnglishWithGoodDescription({
+    // Filter for remote, non-technical entry-level jobs in English with good descriptions
+    const filtered = jobs.filter(job => {
+      const mapped = {
         title: job.title,
-        description: job.description,
-        company: job.company?.display_name
-      });
+        description: job.description || '',
+        category: job.category?.label || '',
+        company: job.company?.display_name || ''
+      };
+      
+      // Check if job is remote
+      const locationLower = (job.location?.display_name || '').toLowerCase();
+      const titleLower = (job.title || '').toLowerCase();
+      const descLower = (job.description || '').toLowerCase();
+      const isRemote = locationLower.includes('remote') || 
+                       titleLower.includes('remote') || 
+                       descLower.includes('remote') ||
+                       descLower.includes('work from home');
+      
+      if (!isRemote) {
+        return false;
+      }
+      
+      const pass = isNonTechnicalEntryLevel(mapped) && isEnglishWithGoodDescription(mapped);
+      return pass;
     }).slice(0, limit);
     
     console.log(`Adzuna: ${filtered.length} passed filters (remote only)`);
@@ -477,8 +273,7 @@ export async function fetchAdzunaJobs(country = 'us', limit = 500) {
       originalUrl: job.redirect_url,
       datePosted: job.created,
       source: 'Adzuna',
-      category: job.category?.label || 'General',
-      companyEmailDomain: extractCompanyDomain(job.description, job.company?.display_name, job.redirect_url)
+      category: job.category?.label || 'General'
     }));
   } catch (error) {
     console.error('Error fetching from Adzuna:', error.message);
@@ -758,9 +553,8 @@ export async function fetchSimplyHiredJobs(limit = 20) {
 
 /**
  * Fetch jobs from Jooble (free, 500 requests/day)
- * V2: Fetch MANY more jobs with pagination
  */
-export async function fetchJoobleJobs(limit = 500) {
+export async function fetchJoobleJobs(limit = 50) {
   const apiKey = process.env.JOOBLE_API_KEY;
 
   if (!apiKey) {
@@ -769,26 +563,28 @@ export async function fetchJoobleJobs(limit = 500) {
   }
 
   try {
-    console.log('Fetching remote jobs from Jooble (targeting high volume)...');
+    console.log('Fetching entry-level non-technical jobs from Jooble...');
     
-    // V2: Broader search queries for all remote jobs
     const searches = [
-      'remote',
-      'work from home',
-      'remote jobs',
-      'telecommute',
-      'remote position',
-      'virtual',
-      'anywhere',
-      'distributed team'
+      'customer service representative entry level',
+      'customer service remote',
+      'sales representative entry level',
+      'sales associate remote',
+      'administrative assistant',
+      'virtual assistant',
+      'data entry clerk',
+      'social media coordinator',
+      'content writer remote',
+      'email support specialist',
+      'chat support representative'
     ];
     
     const allJobs = [];
     
     for (const keywords of searches) {
       try {
-        // Fetch MANY pages for each search (up to 10 pages = 100 jobs per search)
-        for (let page = 1; page <= 10; page++) {
+        // Fetch multiple pages for each search
+        for (let page = 1; page <= 2; page++) {
           const response = await axios.post(
             `https://jooble.org/api/${apiKey}`,
             {
@@ -802,8 +598,6 @@ export async function fetchJoobleJobs(limit = 500) {
           const jobs = response.data.jobs || [];
           allJobs.push(...jobs);
           
-          console.log(`Jooble "${keywords}" page ${page}: ${jobs.length} jobs`);
-          
           // If we got less than expected, no point fetching next page
           if (jobs.length < 10) break;
         }
@@ -814,15 +608,15 @@ export async function fetchJoobleJobs(limit = 500) {
     
     console.log(`Jooble: Fetched ${allJobs.length} total jobs before filtering`);
     
-    // V2: Filter for ALL remote jobs with good descriptions
+    // Filter for non-technical entry-level jobs in English with good descriptions
     const filtered = allJobs.filter(job => {
       const mapped = {
         title: job.title,
         description: job.snippet || '',
-        location: job.location || '',
+        category: '',
         company: job.company
       };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
+      return isNonTechnicalEntryLevel(mapped) && isEnglishWithGoodDescription(mapped);
     });
     
     console.log(`Jooble: ${filtered.length} jobs passed filters`);
@@ -839,12 +633,11 @@ export async function fetchJoobleJobs(limit = 500) {
       description: sanitizeHTML(job.snippet) || 'View full posting for details',
       requirements: 'See full posting',
       salaryRange: job.salary || 'Not specified',
-      location: job.location || 'Remote',
+      location: job.location || 'USA',
       originalUrl: job.link,
       datePosted: job.updated || new Date().toISOString(),
       source: 'Jooble',
-      category: 'Remote',
-      companyEmailDomain: extractEmailDomain(job.snippet)
+      category: 'Entry Level'
     }));
   } catch (error) {
     console.error('Error fetching from Jooble:', error.message);
@@ -898,154 +691,6 @@ export async function fetchFindworkJobs(limit = 20) {
     }));
   } catch (error) {
     console.error('Error fetching from Findwork:', error.message);
-    return [];
-  }
-}
-
-/**
- * Fetch jobs from WellFound (formerly AngelList Talent) - startup jobs
- */
-export async function fetchWellFoundJobs(limit = 50) {
-  try {
-    console.log('Fetching jobs from WellFound...');
-    
-    // WellFound has a GraphQL API but also a simpler jobs feed
-    const response = await axios.get('https://wellfound.com/api/jobs', {
-      params: {
-        remote: true,
-        per_page: 50
-      },
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
-
-    const jobs = response.data.jobs || response.data || [];
-    
-    const filtered = jobs.filter(job => {
-      const mapped = {
-        title: job.title || job.name,
-        description: job.description || '',
-        location: job.location || '',
-        company: job.company?.name || job.startup?.name || ''
-      };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
-    }).slice(0, limit);
-
-    return filtered.map(job => ({
-      jobId: `wellfound_${job.id}`,
-      title: job.title || job.name,
-      company: job.company?.name || job.startup?.name || 'Startup',
-      description: sanitizeHTML(job.description) || 'No description available',
-      requirements: sanitizeHTML(extractRequirements(job.description)),
-      salaryRange: job.salary_range || 'Not specified',
-      location: 'Remote',
-      originalUrl: job.url || `https://wellfound.com/jobs/${job.id}`,
-      datePosted: job.created_at || new Date().toISOString(),
-      source: 'WellFound',
-      category: job.role_type || 'Startup',
-      companyEmailDomain: extractEmailDomain(job.description)
-    }));
-  } catch (error) {
-    console.error('Error fetching from WellFound:', error.message);
-    return [];
-  }
-}
-
-/**
- * Fetch jobs from WeWorkRemotely (curated remote jobs)
- */
-export async function fetchWeWorkRemotelyJobs(limit = 50) {
-  try {
-    console.log('Fetching jobs from WeWorkRemotely...');
-    
-    const response = await axios.get('https://weworkremotely.com/remote-jobs.json', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
-
-    const jobs = [];
-    const categories = response.data || [];
-    
-    // WWR groups jobs by category
-    categories.forEach(category => {
-      if (category.jobs) {
-        jobs.push(...category.jobs);
-      }
-    });
-    
-    const filtered = jobs.filter(job => {
-      const mapped = {
-        title: job.title,
-        description: job.description || '',
-        location: 'Remote',
-        company: job.company
-      };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
-    }).slice(0, limit);
-
-    return filtered.map(job => ({
-      jobId: `weworkremotely_${job.id}`,
-      title: job.title,
-      company: job.company,
-      description: sanitizeHTML(job.description) || 'No description available',
-      requirements: sanitizeHTML(extractRequirements(job.description)),
-      salaryRange: 'Not specified',
-      location: 'Remote',
-      originalUrl: job.url || `https://weworkremotely.com${job.path}`,
-      datePosted: job.published_at || new Date().toISOString(),
-      source: 'WeWorkRemotely',
-      category: job.category || 'Remote',
-      companyEmailDomain: extractEmailDomain(job.description)
-    }));
-  } catch (error) {
-    console.error('Error fetching from WeWorkRemotely:', error.message);
-    return [];
-  }
-}
-
-/**
- * Fetch jobs from Remote.co
- */
-export async function fetchRemoteCoJobs(limit = 50) {
-  try {
-    console.log('Fetching jobs from Remote.co...');
-    
-    const response = await axios.get('https://remote.co/api/jobs', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
-
-    const jobs = response.data || [];
-    
-    const filtered = jobs.filter(job => {
-      const mapped = {
-        title: job.title || job.position,
-        description: job.description || '',
-        location: 'Remote',
-        company: job.company_name || job.company
-      };
-      return isRemoteJob(mapped) && isEnglishWithGoodDescription(mapped);
-    }).slice(0, limit);
-
-    return filtered.map(job => ({
-      jobId: `remoteco_${job.id || Buffer.from(job.url).toString('base64').substring(0, 20)}`,
-      title: job.title || job.position,
-      company: job.company_name || job.company || 'See posting',
-      description: sanitizeHTML(job.description) || 'View full posting for details',
-      requirements: sanitizeHTML(extractRequirements(job.description)),
-      salaryRange: job.salary || 'Not specified',
-      location: 'Remote',
-      originalUrl: job.url,
-      datePosted: job.date_posted || new Date().toISOString(),
-      source: 'Remote.co',
-      category: job.category || 'Remote',
-      companyEmailDomain: extractEmailDomain(job.description)
-    }));
-  } catch (error) {
-    console.error('Error fetching from Remote.co:', error.message);
     return [];
   }
 }
@@ -1129,42 +774,55 @@ export async function fetchCareerjetJobs(limit = 20) {
 }
 
 /**
- * Fetch jobs from all available sources (V2: HIGH VOLUME - targeting 5000+ jobs)
- * NOTE: WellFound, WeWorkRemotely, Remote.co disabled due to API issues
+ * Fetch jobs from all available sources
  */
-export async function fetchAllJobs(limitPerSource = 500) {
-  console.log(`\nV2: HIGH VOLUME MODE - Fetching up to ${limitPerSource} remote jobs from each source...\n`);
+export async function fetchAllJobs(limit = 20) {
+  console.log(`\nFetching ${limit} non-technical entry-level jobs from each source...\n`);
   
   const [
-    remoteOKJobs,  // Fixed: date handling
-    remotiveJobs,  // Increased limit
-    adzunaJobs,    // Multi-page fetch
-    joobleJobs     // Multi-page fetch with multiple searches
+    remoteOKJobs, 
+    remotiveJobs, 
+    adzunaJobs, 
+    jsearchJobs,
+    linkedinJobs,
+    simplyhiredJobs,
+    joobleJobs,
+    findworkJobs,
+    careerjetJobs
   ] = await Promise.all([
-    fetchRemoteOKJobs(limitPerSource),
-    fetchRemotiveJobs(Math.min(limitPerSource, 200)), // Remotive API limit
-    fetchAdzunaJobs('us', limitPerSource),
-    fetchJoobleJobs(limitPerSource)
+    fetchRemoteOKJobs(limit),
+    fetchRemotiveJobs(limit),
+    fetchAdzunaJobs('us', limit),
+    fetchJSearchJobs(limit),
+    fetchLinkedInRSSJobs(limit),
+    fetchSimplyHiredJobs(limit),
+    fetchJoobleJobs(limit),
+    fetchFindworkJobs(limit),
+    fetchCareerjetJobs(limit)
   ]);
 
   const allJobs = [
     ...remoteOKJobs, 
     ...remotiveJobs, 
     ...adzunaJobs, 
-    ...joobleJobs
+    ...jsearchJobs,
+    ...linkedinJobs,
+    ...simplyhiredJobs,
+    ...joobleJobs,
+    ...findworkJobs,
+    ...careerjetJobs
   ];
   
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`V2: Total remote jobs fetched: ${allJobs.length}`);
-  console.log(`${'='.repeat(60)}`);
+  console.log(`\nTotal non-technical entry-level jobs fetched: ${allJobs.length}`);
   console.log(`- RemoteOK: ${remoteOKJobs.length}`);
   console.log(`- Remotive: ${remotiveJobs.length}`);
   console.log(`- Adzuna: ${adzunaJobs.length}`);
+  console.log(`- JSearch: ${jsearchJobs.length}`);
+  console.log(`- LinkedIn: ${linkedinJobs.length}`);
+  console.log(`- SimplyHired: ${simplyhiredJobs.length}`);
   console.log(`- Jooble: ${joobleJobs.length}`);
-  
-  const jobsWithEmail = allJobs.filter(j => j.companyEmailDomain).length;
-  console.log(`\n📧 Jobs with company email domain: ${jobsWithEmail} (${allJobs.length > 0 ? Math.round(jobsWithEmail/allJobs.length*100) : 0}%)`);
-  console.log(`🎯 Target was 5,000+ jobs, got ${allJobs.length} jobs\n`);
+  console.log(`- Findwork: ${findworkJobs.length}`);
+  console.log(`- Careerjet: ${careerjetJobs.length}`);
   
   return allJobs;
 }

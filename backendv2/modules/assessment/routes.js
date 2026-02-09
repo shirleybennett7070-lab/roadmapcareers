@@ -47,7 +47,7 @@ router.post('/complete', async (req, res) => {
     // Update lead with scheduled email (cron job will send it)
     await upsertLead({
       ...lead,
-      stage: moveToStage.assessmentCompleted(),
+      stage: moveToStage.assessmentOffered(),
       assessmentCompleted: true,
       pendingEmailTime: pendingEmailTime,
       pendingEmailType: 'skill_assessment_offer',
