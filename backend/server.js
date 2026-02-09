@@ -94,16 +94,17 @@ app.listen(PORT, () => {
 
 /**
  * Email Processing Cron Job
- * - Production: Every 1.5 hours (two cron schedules to achieve 90-min interval)
+ * - Production: Every 1 hour
  * - Development: Every 1 minute (separate sheet)
  */
 function startEmailCron() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const intervalText = isProduction ? 'every 1.5 hours' : 'every minute';
+  const cronSchedule = isProduction ? '0 * * * *' : '* * * * *';
+  const intervalText = isProduction ? 'every hour' : 'every minute';
   
-  console.log(`\n⏰ Email cron job scheduled: ${intervalText}`);
+  console.log(`\n⏰ Email cron job scheduled: ${intervalText} (${cronSchedule})`);
   
-  const processEmails = async () => {
+  cron.schedule(cronSchedule, async () => {
     const timestamp = new Date().toISOString();
     console.log(`\n[${timestamp}] 🔄 Cron: Processing emails...`);
     
@@ -120,14 +121,5 @@ function startEmailCron() {
     } catch (error) {
       console.error(`[${timestamp}] ❌ Cron error:`, error.message);
     }
-  };
-
-  if (isProduction) {
-    // Two cron schedules to achieve every 1.5 hours:
-    // :00 at hours 0,3,6,9,12,15,18,21  and  :30 at hours 1,4,7,10,13,16,19,22
-    cron.schedule('0 0,3,6,9,12,15,18,21 * * *', processEmails);
-    cron.schedule('30 1,4,7,10,13,16,19,22 * * *', processEmails);
-  } else {
-    cron.schedule('* * * * *', processEmails);
-  }
+  });
 }
