@@ -35,17 +35,9 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Verify vite config
-        working-directory: frontend
-        run: cat vite.config.js
-
       - name: Build
         working-directory: frontend
         run: npm run build
-
-      - name: Verify build output
-        working-directory: frontend
-        run: head -10 dist/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
