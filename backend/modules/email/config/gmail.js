@@ -149,6 +149,15 @@ export async function exchangeCodeForTokens(code) {
 }
 
 /**
+ * Get current token as base64 string (for saving to env var)
+ */
+export function getTokenBase64() {
+  if (!existsSync(TOKEN_PATH)) return null;
+  const token = readFileSync(TOKEN_PATH, 'utf8');
+  return Buffer.from(token).toString('base64');
+}
+
+/**
  * Read unread emails from inbox
  */
 export async function readUnreadEmails() {

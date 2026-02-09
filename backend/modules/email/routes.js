@@ -1,7 +1,7 @@
 import express from 'express';
 import { processInbox } from './services/emailProcessor.js';
 import { getAllLeads, getLead, upsertLead, initializeLeadsSheet, moveToStage } from './services/leadsService.js';
-import { sendEmail, getAuthUrl, exchangeCodeForTokens } from './config/gmail.js';
+import { sendEmail, getAuthUrl, exchangeCodeForTokens, getTokenBase64 } from './config/gmail.js';
 import { getAssessmentReviewTemplate, getAssessmentOfferTemplate, getInitialResponseTemplate, getTrainingOfferTemplate, getSkillAssessmentOfferTemplate, getIntakeRequestTemplate } from './services/templates.js';
 
 const router = express.Router();
@@ -36,6 +36,22 @@ router.get('/oauth/callback', async (req, res) => {
   } catch (error) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/admin?gmail_auth=error&message=${encodeURIComponent(error.message)}`);
+  }
+});
+
+/**
+ * GET /api/email/token-base64
+ * Get current token as base64 for env var update
+ */
+router.get('/token-base64', (req, res) => {
+  try {
+    const base64 = getTokenBase64();
+    if (!base64) {
+      return res.status(404).json({ error: 'No token file found' });
+    }
+    res.json({ base64 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
