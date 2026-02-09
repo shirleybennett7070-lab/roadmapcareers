@@ -40,6 +40,17 @@ export default function JobDetailsSidebar({ jobInfo, assessmentType = 'candidate
           </span>
         </div>
 
+        {jobInfo?.pay && jobInfo.pay !== 'Not specified' && (
+          <div className="border-t border-gray-200 pt-4">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+              Pay
+            </span>
+            <span className="text-gray-900 font-bold block text-lg">
+              {jobInfo.pay}
+            </span>
+          </div>
+        )}
+
         <div className="border-t border-gray-200 pt-4">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
             Work Type

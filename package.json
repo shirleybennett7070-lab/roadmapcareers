@@ -1,0 +1,18 @@
+{
+  "name": "roadmap-careers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RoadmapCareers monorepo",
+  "scripts": {
+    "dev": "npm run dev:v1",
+    "dev:v1": "npm run dev:v1:be & npm run dev:v1:fe & wait",
+    "dev:v1:be": "cd backend && npm run dev",
+    "dev:v1:fe": "cd frontend && npm run dev",
+    "dev:v2": "npm run dev:v2:be & npm run dev:v2:fe & wait",
+    "dev:v2:be": "cd backendv2 && npm run dev",
+    "dev:v2:fe": "cd frontendv2 && npm run dev",
+    "install:v1": "cd backend && npm install && cd ../frontend && npm install",
+    "install:v2": "cd backendv2 && npm install && cd ../frontendv2 && npm install",
+    "install:all": "npm run install:v1 && npm run install:v2"
+  }
+}

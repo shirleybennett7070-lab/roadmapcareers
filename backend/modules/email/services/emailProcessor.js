@@ -1,6 +1,6 @@
 import { readUnreadEmails, sendEmail, markAsRead } from '../config/gmail.js';
 import { getLead, upsertLead, LEAD_STAGES, getInitialStage, getNextStage, moveToStage, getLeadsWithPendingEmails } from './leadsService.js';
-import { getTemplateForStage, getSkillAssessmentOfferTemplate, getAssessmentReviewTemplate } from './templates.js';
+import { getTemplateForStage, getSkillAssessmentOfferTemplate, getAssessmentReviewTemplate, getAssessmentOfferTemplate } from './templates.js';
 
 /**
  * Simplified email processor for Customer Service training funnel
@@ -195,7 +195,7 @@ export async function processEmail(email) {
     console.log(`  ✓ Existing lead (Stage: ${lead.stage})`);
     
     // Paid customers - ignore all emails (they've completed the funnel)
-    if (lead.stage === LEAD_STAGES.STAGE_6_PAID || lead.paymentStatus === 'completed') {
+    if (lead.stage === LEAD_STAGES.STAGE_7_PAID || lead.paymentStatus === 'completed') {
       console.log('  ✓ Paid customer - ignoring (funnel completed)');
       return { 
         email: email.email, 
@@ -206,7 +206,7 @@ export async function processEmail(email) {
     }
     
     // Dropped leads - ignore
-    if (lead.stage === LEAD_STAGES.STAGE_8_DROPPED) {
+    if (lead.stage === LEAD_STAGES.STAGE_9_DROPPED) {
       console.log('  ✓ Dropped lead - ignoring');
       return { 
         email: email.email, 
@@ -217,11 +217,11 @@ export async function processEmail(email) {
     }
     
     // Stages that advance on reply:
-    // - Stage 1 (jobs list) → Stage 2 (assessment offer)
-    // - Stage 4 (soft pitch) → Stage 5 (training/certification offer)
+    // - Stage 1 (jobs list) → Stage 1B (intake request)
+    // - Stage 5 (soft pitch) → Stage 6 (training/certification offer)
     const advanceOnReplyStages = [
       LEAD_STAGES.STAGE_1_JOBS_LIST_SENT,
-      LEAD_STAGES.STAGE_4_SOFT_PITCH_SENT
+      LEAD_STAGES.STAGE_5_SOFT_PITCH_SENT
     ];
     
     if (advanceOnReplyStages.includes(lead.stage)) {
@@ -306,7 +306,10 @@ export async function processPendingEmails() {
         let newStage = lead.stage;
         
         // Get the appropriate template based on pending email type
-        if (lead.pendingEmailType === 'skill_assessment_offer') {
+        if (lead.pendingEmailType === 'assessment_offer') {
+          template = await getAssessmentOfferTemplate(lead.name);
+          newStage = moveToStage.assessmentOffered();
+        } else if (lead.pendingEmailType === 'skill_assessment_offer') {
           template = await getSkillAssessmentOfferTemplate(lead.name);
         } else if (lead.pendingEmailType === 'assessment_review') {
           template = await getAssessmentReviewTemplate(lead.name);

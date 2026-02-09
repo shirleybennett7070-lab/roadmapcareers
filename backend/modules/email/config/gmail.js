@@ -95,8 +95,10 @@ export async function getGmailClient() {
         writeFileSync(TOKEN_PATH, JSON.stringify(credentials));
       }
     } catch (error) {
+      // Reset cached client so next call can retry
+      oauth2Client = null;
       console.error('Error refreshing token:', error.message);
-      throw new Error('Token expired. Run "npm run auth-gmail" to re-authenticate');
+      throw new Error('Gmail token expired. Click "Re-authenticate Gmail" in the Admin dashboard.');
     }
   }
   
@@ -110,7 +112,7 @@ export async function getGmailClient() {
 export function getAuthUrl() {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  const redirectUri = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/oauth/callback';
+  const redirectUri = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/api/email/oauth/callback';
 
   if (!clientId || !clientSecret) {
     throw new Error('GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET must be set in .env file');
@@ -131,7 +133,7 @@ export function getAuthUrl() {
 export async function exchangeCodeForTokens(code) {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  const redirectUri = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/oauth/callback';
+  const redirectUri = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/api/email/oauth/callback';
 
   const oauth2ClientTemp = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   
@@ -139,6 +141,9 @@ export async function exchangeCodeForTokens(code) {
   
   // Save tokens
   writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+  
+  // Reset cached client so next call uses new token
+  oauth2Client = null;
   
   return tokens;
 }

@@ -7,13 +7,17 @@ import CertificationPrep from './components/CertificationPrep';
 import CertificateVerification from './components/CertificateVerification';
 import CertificateView from './components/CertificateView';
 import JobDetails from './components/JobDetails';
+import CandidateIntake from './components/CandidateIntake';
+import Admin from './components/Admin';
 
 function App() {
   const currentPath = window.location.pathname;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {currentPath.startsWith('/certification/result') ? (
+      {currentPath === '/admin' ? (
+        <Admin />
+      ) : currentPath.startsWith('/certification/result') ? (
         <CertificationResult />
       ) : currentPath === '/certification/prep' ? (
         <CertificationPrep />
@@ -25,6 +29,8 @@ function App() {
         <Certification />
       ) : currentPath === '/job-details' ? (
         <JobDetails />
+      ) : currentPath === '/intake' ? (
+        <CandidateIntake />
       ) : currentPath === '/skill-assessment' ? (
         <SkillAssessment />
       ) : currentPath === '/assessment' || currentPath === '/' ? (

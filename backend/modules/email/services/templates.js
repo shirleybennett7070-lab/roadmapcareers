@@ -3,17 +3,17 @@ import { getAllJobs } from '../../jobs/services/sheetsService.js';
 
 /**
  * Email templates for Customer Service Training funnel
- * Dynamically includes top 3 jobs from database
+ * Dynamically includes top job from database
  */
 
 // Base URL for the frontend - change this for production
 const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 /**
- * Get top 3 featured jobs to show in emails
- * 2 from Jooble, 1 from Adzuna (prioritize jobs with salary, but include any if needed)
+ * Get the best single job to feature in emails
+ * Prioritizes jobs with salary info (hourly preferred, then highest pay)
  */
-async function getTop3Jobs() {
+async function getTopJob() {
   try {
     const allJobs = await getAllJobs();
     
@@ -30,37 +30,21 @@ async function getTop3Jobs() {
       return /hour|hr|\/h|\bph\b/i.test(str);
     };
     
-    // Prefer Jooble jobs - get 3, sorted by hourly pay then salary amount
-    const joobleJobs = allJobs
-      .filter(job => job.source === 'Jooble')
-      .sort((a, b) => {
-        const aHasSalary = a.salaryRange && a.salaryRange !== 'Not specified' ? 1 : 0;
-        const bHasSalary = b.salaryRange && b.salaryRange !== 'Not specified' ? 1 : 0;
-        // First: jobs with salary over jobs without
-        if (bHasSalary !== aHasSalary) return bHasSalary - aHasSalary;
-        // Second: prefer hourly pay
-        const aIsHourly = isHourly(a.salaryRange) ? 1 : 0;
-        const bIsHourly = isHourly(b.salaryRange) ? 1 : 0;
-        if (bIsHourly !== aIsHourly) return bIsHourly - aIsHourly;
-        // Third: sort by amount
-        return getFirstNumber(b.salaryRange) - getFirstNumber(a.salaryRange);
-      })
-      .slice(0, 3);
+    // Sort all jobs: salary > no salary, hourly > other, highest pay first
+    const sorted = allJobs.sort((a, b) => {
+      const aHasSalary = a.salaryRange && a.salaryRange !== 'Not specified' ? 1 : 0;
+      const bHasSalary = b.salaryRange && b.salaryRange !== 'Not specified' ? 1 : 0;
+      if (bHasSalary !== aHasSalary) return bHasSalary - aHasSalary;
+      const aIsHourly = isHourly(a.salaryRange) ? 1 : 0;
+      const bIsHourly = isHourly(b.salaryRange) ? 1 : 0;
+      if (bIsHourly !== aIsHourly) return bIsHourly - aIsHourly;
+      return getFirstNumber(b.salaryRange) - getFirstNumber(a.salaryRange);
+    });
     
-    const selectedJobs = [...joobleJobs];
-    
-    // If we don't have enough, fill with any available jobs
-    if (selectedJobs.length < 3) {
-      const remaining = allJobs
-        .filter(job => !selectedJobs.includes(job))
-        .slice(0, 3 - selectedJobs.length);
-      selectedJobs.push(...remaining);
-    }
-    
-    return selectedJobs;
+    return sorted[0] || null;
   } catch (error) {
     console.error('Error fetching jobs:', error.message);
-    return [];
+    return null;
   }
 }
 
@@ -98,57 +82,46 @@ function buildJobUrl(basePath, job) {
 /**
  * Format a single job listing for email
  */
-function formatJobListing(job, index) {
+function formatJobListing(job) {
   const jobDetailsUrl = buildJobUrl('/job-details', job);
-  return `${index + 1}. ${job.title}
-   Company: ${job.company}
-   Pay: ${job.salaryRange}
+  const salaryLine = job.salaryRange && job.salaryRange !== 'Not specified' ? `\n   Pay: ${job.salaryRange}` : '';
+  return `<b>${job.title}</b>
+   Company: ${job.company}${salaryLine}
    Location: ${job.location}
-   Type: ${job.category || 'Customer Service'}
-   <a href="${jobDetailsUrl}">More Info</a>`;
+   <a href="${jobDetailsUrl}">View Details</a>`;
 }
 
 /**
  * Format a job with action link (assessment, certification, etc.)
  */
-function formatJobWithAction(job, index, actionPath, actionText) {
+function formatJobWithAction(job, actionPath, actionText) {
   const actionUrl = buildJobUrl(actionPath, job);
-  return `${index + 1}. ${job.title} (${job.category || 'Entry Level'} | Remote)
+  return `<b>${job.title}</b> (${job.category || 'Entry Level'} | Remote)
    <a href="${actionUrl}"><b>${actionText}</b></a>`;
 }
 
 /**
- * Format jobs for email display with full details and clickable links
+ * Get a formatted job or fallback
  */
-function formatJobsForEmail(jobs) {
-  if (!jobs || jobs.length === 0) {
-    // Fallback jobs if database is empty
-    const fallbackJobs = [
-      { title: 'Customer Service Representative', company: 'Various Employers', salaryRange: '$20-25/hour', location: 'Remote (US-based)', category: 'Full-time, Entry-level' },
-      { title: 'Live Chat Support Specialist', company: 'Various Employers', salaryRange: '$18-22/hour', location: 'Remote (US-based)', category: 'Full-time, Entry-level' },
-      { title: 'Email Support Agent', company: 'Various Employers', salaryRange: '$19-23/hour', location: 'Remote (US-based)', category: 'Full-time, Entry-level' }
-    ];
-    return fallbackJobs.map((job, index) => formatJobListing(job, index)).join('\n\n');
-  }
-  
-  return jobs.map((job, index) => formatJobListing(job, index)).join('\n\n');
-}
-
-/**
- * Format jobs with action links (for assessments, certifications, etc.)
- */
-function formatJobsWithAction(jobs, actionPath, actionText) {
-  return jobs.map((job, index) => formatJobWithAction(job, index, actionPath, actionText)).join('\n\n');
+function getJobOrFallback(job) {
+  if (job) return job;
+  return {
+    title: 'Customer Service Representative',
+    company: 'Various Employers',
+    salaryRange: '$20-25/hour',
+    location: 'Remote (US-based)',
+    category: 'Full-time, Entry-level'
+  };
 }
 
 /**
  * STAGE 1: Initial Response Template
- * Sends jobs list with links to our job-details page
+ * Sends 1 job and asks if they're interested in that role
  */
 export async function getInitialResponseTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const jobs = await getTop3Jobs();
-  const jobsList = formatJobsForEmail(jobs);
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
   
   return {
     subject: 'Re: Remote Positions',
@@ -156,10 +129,11 @@ export async function getInitialResponseTemplate(name) {
 
 Thank you for your interest in the remote opportunities.
 
+${jobListing}
 
-${jobsList}
+This is an entry-level friendly position with an established company that provides training for qualified candidates.
 
-These positions are opportunities with established companies. Most are entry-level friendly and provide training for qualified candidates.
+Would you be interested in this role? If so, I can share the next steps to get you started.
 
 Best regards,
 Katherine
@@ -170,29 +144,25 @@ katherine@roadmapcareers.com`
 
 /**
  * STAGE 2: Assessment Offer Template
- * Sends assessment links with job details
+ * Sends assessment link for the role
  */
 export async function getAssessmentOfferTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const jobs = await getTop3Jobs();
-  
-  const jobsList = formatJobsForEmail(jobs);
-  const assessmentLinks = formatJobsWithAction(jobs, '/assessment', 'Take Assessment');
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+  const assessmentLink = formatJobWithAction(job, '/assessment', 'Take Assessment');
   
   return {
     subject: 'Re: Applicant- Assessment',
     body: `${greeting},
 
-Thank you for your interest in these opportunities.
-
-${jobsList}
 
 Next Steps:
-Are you willing to complete a brief assessment?
+Are you willing to complete a brief assessment? This helps me understand your background for the job that you are interested in:
 
-This assessment helps me understand your background for roles you're exploring:
+${jobListing}
 
-${assessmentLinks}
+${assessmentLink}
 
 This takes approximately 5 minutes to complete.
 
@@ -209,23 +179,23 @@ katherine@roadmapcareers.com`
  */
 export async function getAssessmentReviewTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const jobs = await getTop3Jobs();
-  const jobsList = formatJobsForEmail(jobs);
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
   
   return {
-    subject: 'Re:Your Assessment Results - Next Steps',
+    subject: 'Re: Your Assessment Results - Next Steps',
     body: `${greeting},
 
 Thank you for completing the professional skills assessment.
 
-I've reviewed your responses and wanted to reach out personally. Based on what I've seen, I believe you have strong potential for these roles:
+I've reviewed your responses and wanted to reach out personally. Based on what I've seen, I believe you have strong potential for this role:
 
-${jobsList}
+${jobListing}
 
-However, I noticed your resume doesn’t list any certifications related to this role.
+However, I noticed your resume doesn't list any certifications related to this role.
 I've noticed that many candidates who apply to similar positions with some sort of certification tend to demonstrate greater readiness to potential employers.
 
-are you open to completing certification? 
+Are you open to completing a certification?
 
 Best regards,
 Katherine
@@ -236,32 +206,31 @@ katherine@roadmapcareers.com`
 
 /**
  * STAGE 5: Training/Certification Offer Template
- * Offers certification with links to our certification page
+ * Offers certification with link to our certification page
  */
 export async function getTrainingOfferTemplate(name, quizScore) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const jobs = await getTop3Jobs();
-  
-  const jobsList = formatJobsForEmail(jobs);
-  const certificationLinks = formatJobsWithAction(jobs, '/certification', 'Get Certification');
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+  const certificationLink = formatJobWithAction(job, '/certification', 'Get Certification');
   
   return {
-    subject: 'Re: Follow up on remote role ',
+    subject: 'Re: Follow up on remote role',
     body: `${greeting},
 
+Here is the role we discussed:
 
-Here are the roles we discussed:
-
-${jobsList}
+${jobListing}
 
 Next Steps:
 
-This quick certification helps document your preparation for roles you're exploring.
+This quick certification helps document your preparation for the role. It's also a great asset for other remote positions — many employers look for candidates who can demonstrate readiness through certifications like this.
 
-${certificationLinks}
+Please note there is a small fee associated with the certification. You will find details in the link
 
-Once you complete the certification, I will follow up with more information.
+${certificationLink}
 
+Once you pass the exam and receive your certificate, the next step will be a technical assessment which I will send to you directly.
 
 Best regards,
 Katherine
@@ -276,23 +245,20 @@ katherine@roadmapcareers.com`
  */
 export async function getFollowUpTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
   
   return {
     subject: 'Re: Remote Customer Service Opportunities',
     body: `${greeting},
 
-I wanted to reach out once more regarding the customer service positions I shared with you.
+I wanted to follow up regarding the role I shared with you:
 
-Several companies I work with have added new remote customer service openings this week, with competitive hourly rates ranging from $18-25/hour for entry-level candidates.
+${jobListing}
 
-If you're still exploring remote work opportunities, I'd be happy to:
+If you're still interested, I'd be happy to walk you through the next steps.
 
-- Share the latest job postings
-- Provide application guidance
-- Connect you with hiring managers
-- Answer any questions about the roles
-
-Please let me know if you'd like me to send updated listings.
+Just let me know and I can get you started right away.
 
 Best regards,
 Katherine
@@ -303,14 +269,13 @@ katherine@roadmapcareers.com`
 
 /**
  * Skill Assessment Offer Template
- * Sent automatically after candidate assessment completion (Stage 2 → Stage 3)
+ * Sent automatically after candidate assessment completion (Stage 2 -> Stage 3)
  */
 export async function getSkillAssessmentOfferTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const jobs = await getTop3Jobs();
-  
-  const jobsList = formatJobsForEmail(jobs);
-  const skillAssessmentLinks = formatJobsWithAction(jobs, '/skill-assessment', 'Take Skills Assessment');
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+  const skillAssessmentLink = formatJobWithAction(job, '/skill-assessment', 'Take Skills Assessment');
   
   return {
     subject: 'Re: Next Step - Skills Assessment',
@@ -318,13 +283,12 @@ export async function getSkillAssessmentOfferTemplate(name) {
 
 Thank you for completing the initial assessment!
 
-${jobsList}
-
 Next Steps:
-Are you willing to complete a skill assessment?
-This assessment helps me understand your skills for roles you're exploring
+Are you willing to complete a skill assessment? This helps me understand your skills for the role:
 
-${skillAssessmentLinks}
+${jobListing}
+
+${skillAssessmentLink}
 
 The skills assessment includes:
 - Real-world remote work scenarios
@@ -334,7 +298,39 @@ The skills assessment includes:
 
 This assessment typically takes 15-20 minutes to complete.
 
-Once completed, I’ll follow up with relevant information
+Once completed, I'll follow up with relevant information.
+
+Best regards,
+Katherine
+Roadmap Careers
+katherine@roadmapcareers.com`
+  };
+}
+
+/**
+ * STAGE 1B: Intake Request Template
+ * Asks candidate to fill out intake form with info + consent to represent
+ */
+export async function getIntakeRequestTemplate(name) {
+  const greeting = name ? `Hi ${name}` : 'Hello';
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+
+  const intakeUrl = buildJobUrl('/intake', job);
+
+  return {
+    subject: 'Re: Next Step - Candidate Intake',
+    body: `${greeting},
+
+Great to hear you're interested! Before we proceed, I need to collect a few details so I can represent you for this role:
+
+${jobListing}
+
+Please fill out this quick form (takes about 2 minutes):
+
+<a href="${intakeUrl}"><b>Complete Intake/b></a>
+
+Once submitted, I'll follow up with the next steps right away.
 
 Best regards,
 Katherine
@@ -352,22 +348,25 @@ export async function getTemplateForStage(stage, leadData) {
   switch (stage) {
     case LEAD_STAGES.STAGE_1_JOBS_LIST_SENT:
       return await getInitialResponseTemplate(name);
-      
-    case LEAD_STAGES.STAGE_2_ASSESSMENT_COMPLETED:
-      // Reply to Stage 1 → Send assessment offer
+
+    case LEAD_STAGES.STAGE_1B_INTAKE_REQUESTED:
+      return await getIntakeRequestTemplate(name);
+
+    case LEAD_STAGES.STAGE_2_INTAKE_COMPLETED:
+      // Intake done -> Send assessment offer
       return await getAssessmentOfferTemplate(name);
       
-    case LEAD_STAGES.STAGE_3_SKILL_ASSESSMENT_COMPLETED:
-      // Reply to Stage 2 → Send skill assessment offer
+    case LEAD_STAGES.STAGE_3_ASSESSMENT_OFFERED:
+      // Assessment done -> Send skill assessment offer
       return await getSkillAssessmentOfferTemplate(name);
       
-    case LEAD_STAGES.STAGE_4_SOFT_PITCH_SENT:
+    case LEAD_STAGES.STAGE_5_SOFT_PITCH_SENT:
       return await getAssessmentReviewTemplate(name);
       
-    case LEAD_STAGES.STAGE_5_TRAINING_OFFERED:
+    case LEAD_STAGES.STAGE_6_TRAINING_OFFERED:
       return await getTrainingOfferTemplate(name, quizScore);
       
-    case LEAD_STAGES.STAGE_7_FOLLOW_UP:
+    case LEAD_STAGES.STAGE_8_FOLLOW_UP:
       return await getFollowUpTemplate(name);
       
     default:
