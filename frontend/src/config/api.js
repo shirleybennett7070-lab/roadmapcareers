@@ -7,12 +7,12 @@ function getApiUrl() {
     return 'http://localhost:3000';
   }
   
-  // Netlify dev environment
-  if (hostname.includes('-dev.netlify.app') || hostname.includes('roadmapcareers-dev')) {
+  // Dev environment (GitHub Pages or Netlify)
+  if (hostname.includes('.github.io') || hostname.includes('-dev.netlify.app') || hostname.includes('roadmapcareers-dev')) {
     return 'https://roadmapcareers-development.up.railway.app';
   }
   
-  // Production (default)
+  // Production (custom domain or default)
   return 'https://roadmapcareers-production.up.railway.app';
 }
 
