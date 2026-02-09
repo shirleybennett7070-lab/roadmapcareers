@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.cdnfonts.com/css/adineue-pro');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+  }
+}
+
+/* Print styles for certificate */
+@media print {
+  /* Hide everything except certificate */
+  body * {
+    visibility: hidden;
+  }
+  
+  .print\:mb-0,
+  .print\:mb-0 * {
+    visibility: visible;
+  }
+  
+  .print\:mb-0 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  /* Remove print button and other UI elements */
+  button,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Optimize certificate for printing */
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+}
