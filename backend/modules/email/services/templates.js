@@ -230,7 +230,7 @@ Please note there is a small fee associated with the certification. You will fin
 
 ${certificationLink}
 
-Once you pass the exam and receive your certificate, the next step will be a technical assessment which I will send to you directly.
+Once you pass the exam and receive your certificate please reply to me with your certificate ID, I need it to verify your certification, the next step will be a technical assessment which I will send to you directly.
 
 Best regards,
 Katherine
