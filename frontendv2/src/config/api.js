@@ -7,8 +7,8 @@ function getApiUrl() {
     return 'http://localhost:3000';
   }
   
-  // Netlify dev environment
-  if (hostname.includes('-dev.netlify.app') || hostname.includes('roadmapcareers-dev')) {
+  // Dev environment (Cloudflare Pages)
+  if (hostname.includes('roadmapcareers-dev') || hostname.includes('.github.io')) {
     return 'https://roadmapcareers-development.up.railway.app';
   }
   
