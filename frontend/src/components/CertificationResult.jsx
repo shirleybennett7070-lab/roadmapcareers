@@ -14,6 +14,7 @@ export default function CertificationResult() {
   const urlParams = new URLSearchParams(window.location.search);
   const paymentStatus = urlParams.get('payment');
   const sessionId = urlParams.get('session_id');
+  const paymentProvider = urlParams.get('provider'); // 'paypal' when returning from PayPal
   
   const [examResult, setExamResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,12 +27,17 @@ export default function CertificationResult() {
     console.log('Token:', token);
     console.log('Payment Status:', paymentStatus);
     console.log('Session ID:', sessionId);
+    console.log('Provider:', paymentProvider);
     console.log('Full URL:', window.location.href);
     
     const initPage = async () => {
-      // Check if returning from Stripe payment
-      if (paymentStatus === 'success' && sessionId) {
-        console.log('✅ Verifying payment with session:', sessionId);
+      if (paymentStatus === 'success' && paymentProvider === 'paypal') {
+        // Returning from PayPal — capture the order using the token from the URL
+        console.log('✅ Capturing PayPal payment...');
+        await capturePayPal();
+      } else if (paymentStatus === 'success' && sessionId) {
+        // Returning from Stripe
+        console.log('✅ Verifying Stripe payment with session:', sessionId);
         await verifyPayment(sessionId);
       } else {
         await loadExamResult();
@@ -95,6 +101,57 @@ export default function CertificationResult() {
       // Still try to load the exam result even if verification fails
       await loadExamResult();
       alert('Payment verification failed. Please refresh the page or contact support.');
+    } finally {
+      setLoading(false);
+      setVerifyingPayment(false);
+    }
+  };
+
+  /**
+   * Capture a PayPal order after user returns from PayPal approval page.
+   * PayPal appends ?token=ORDER_ID to the return URL automatically.
+   */
+  const capturePayPal = async () => {
+    try {
+      setLoading(true);
+      setVerifyingPayment(true);
+
+      // PayPal adds its order ID as the "token" query param on redirect
+      const paypalOrderId = urlParams.get('token');
+
+      if (!paypalOrderId) {
+        console.error('❌ No PayPal order ID in URL');
+        await loadExamResult();
+        return;
+      }
+
+      console.log('💳 Capturing PayPal order:', paypalOrderId);
+
+      const response = await fetch(`${API_URL}/api/payments/paypal/capture-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: paypalOrderId }),
+      });
+
+      const data = await response.json();
+      console.log('💳 PayPal capture response:', data);
+
+      if (data.success && data.paid) {
+        console.log('✅ PayPal payment captured! Reloading exam result...');
+        const resultResponse = await fetch(`${API_URL}/api/certifications/exam-result/${token}`);
+        if (resultResponse.ok) {
+          const resultData = await resultResponse.json();
+          console.log('📄 Updated exam result:', resultData);
+          setExamResult(resultData);
+          console.log('🎉 Certificate ready to display!');
+        }
+      } else {
+        await loadExamResult();
+      }
+    } catch (err) {
+      console.error('❌ Error capturing PayPal payment:', err);
+      await loadExamResult();
+      alert('PayPal payment verification failed. Please refresh the page or contact support.');
     } finally {
       setLoading(false);
       setVerifyingPayment(false);

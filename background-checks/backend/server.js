@@ -44,7 +44,10 @@ app.post('/api/payments/create-checkout-session', async (req, res) => {
     const unitAmount = discountApplied ? PRICING.discountedPrice : PRICING.basePrice;
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      // Use automatic_payment_methods instead of payment_method_types: ['card']
+      // This lets Stripe dynamically show the best payment methods for each
+      // customer's region (UPI in India, iDEAL in NL, cards everywhere, etc.)
+      automatic_payment_methods: { enabled: true },
       line_items: [
         {
           price_data: {
@@ -62,6 +65,15 @@ app.post('/api/payments/create-checkout-session', async (req, res) => {
       success_url: `${FRONTEND_URL}/confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${FRONTEND_URL}/personal-info?payment=cancelled`,
       customer_email: email,
+      // Collect billing address & phone — gives Stripe more identity signals
+      // to distinguish real customers from card testers, reducing fraud blocks
+      billing_address_collection: 'required',
+      phone_number_collection: { enabled: true },
+      // Clear statement descriptor so the charge looks legitimate on bank statements
+      payment_intent_data: {
+        statement_descriptor: 'VERIFYCANDIDATES',
+        description: `Background check for ${firstName} ${lastName}`,
+      },
       metadata: {
         firstName,
         lastName,

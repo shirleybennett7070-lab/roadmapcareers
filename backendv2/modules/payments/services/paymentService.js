@@ -15,7 +15,10 @@ export async function createCheckoutSession({ token, email, fullName }) {
 
   try {
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      // Use automatic_payment_methods instead of payment_method_types: ['card']
+      // This lets Stripe dynamically show the best payment methods for each
+      // customer's region (UPI in India, iDEAL in NL, cards everywhere, etc.)
+      automatic_payment_methods: { enabled: true },
       line_items: [
         {
           price_data: {
@@ -23,7 +26,6 @@ export async function createCheckoutSession({ token, email, fullName }) {
             product_data: {
               name: 'Remote Work Professional Certification',
               description: 'Official digital certificate with lifetime validity',
-              images: ['https://your-logo-url.com/certificate.png'], // Optional: add your logo
             },
             unit_amount: STRIPE_CONFIG.certificationPrice,
           },
@@ -34,13 +36,20 @@ export async function createCheckoutSession({ token, email, fullName }) {
       success_url: `${STRIPE_CONFIG.successUrl}/${token}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${STRIPE_CONFIG.successUrl}/${token}?payment=cancelled`,
       customer_email: email,
+      // Collect billing address & phone — gives Stripe more identity signals
+      // to distinguish real customers from card testers, reducing fraud blocks
+      billing_address_collection: 'required',
+      phone_number_collection: { enabled: true },
+      // Clear statement descriptor so the charge looks legitimate on bank statements
+      payment_intent_data: {
+        statement_descriptor: 'ROADMAPCAREERS',
+        description: `Certification for ${fullName}`,
+      },
       metadata: {
         token,
         fullName,
         productType: 'certification',
       },
-      // Enable automatic tax calculation (optional)
-      // automatic_tax: { enabled: true },
     });
 
     return {

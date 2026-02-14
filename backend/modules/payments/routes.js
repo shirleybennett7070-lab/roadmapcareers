@@ -4,6 +4,11 @@ import {
   verifyPayment, 
   handleWebhook 
 } from './services/paymentService.js';
+import {
+  createPayPalOrder,
+  capturePayPalOrder,
+} from './services/paypalService.js';
+import { isPayPalConfigured } from './config/paypal.js';
 import { getExamResultByToken, updatePaymentStatus } from '../certifications/services/certificationsService.js';
 import { STRIPE_CONFIG } from './config/stripe.js';
 
@@ -135,14 +140,98 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   }
 });
 
+// ─── PayPal Routes ────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/payments/paypal/create-order
+ * Create a PayPal order (equivalent of Stripe checkout session)
+ */
+router.post('/paypal/create-order', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    // Same validation as Stripe flow
+    const examResult = await getExamResultByToken(token);
+
+    if (!examResult) {
+      return res.status(404).json({ error: 'Exam result not found' });
+    }
+    if (!examResult.passed) {
+      return res.status(400).json({ error: 'Cannot purchase certificate - exam not passed' });
+    }
+    if (examResult.paymentStatus === 'completed') {
+      return res.status(400).json({ error: 'Certificate already purchased' });
+    }
+
+    const order = await createPayPalOrder({
+      token,
+      email: examResult.email,
+      fullName: examResult.fullName,
+    });
+
+    res.json(order);
+  } catch (error) {
+    console.error('Error creating PayPal order:', error);
+    res.status(500).json({
+      error: 'Failed to create PayPal order',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/payments/paypal/capture-order
+ * Capture payment after user approves on PayPal, then update cert status
+ */
+router.post('/paypal/capture-order', async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    const capture = await capturePayPalOrder(orderId);
+
+    if (!capture.paid) {
+      return res.status(400).json({ error: 'Payment not completed', status: capture.status });
+    }
+
+    // Update payment status in database (same as Stripe flow)
+    const result = await updatePaymentStatus(capture.token, 'completed');
+
+    console.log(`✅ PayPal payment completed for token: ${capture.token}`);
+
+    res.json({
+      success: true,
+      paid: true,
+      certificateId: result.certificateId,
+      message: 'PayPal payment verified successfully',
+    });
+  } catch (error) {
+    console.error('Error capturing PayPal order:', error);
+    res.status(500).json({
+      error: 'Failed to capture PayPal payment',
+      message: error.message,
+    });
+  }
+});
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
 /**
  * GET /api/payments/config
- * Get Stripe publishable key and pricing for frontend
+ * Get payment configuration for frontend
  */
 router.get('/config', (req, res) => {
   res.json({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     certificationPrice: STRIPE_CONFIG.certificationPrice / 100, // Convert cents to dollars
+    paypalEnabled: isPayPalConfigured(),
   });
 });
 
