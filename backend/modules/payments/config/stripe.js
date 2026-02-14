@@ -17,7 +17,8 @@ export const isStripeConfigured = () => isValidKey;
 // Stripe configuration
 export const STRIPE_CONFIG = {
   currency: 'usd',
-  certificationPrice: 100, // $1.00 in cents
+  certificationPrice: 100, // $1.00 in cents (base price before tax)
+  taxRate: 0.30, // 30% tax
   successUrl: process.env.STRIPE_SUCCESS_URL || 'http://localhost:5173/certification/result',
   cancelUrl: process.env.STRIPE_CANCEL_URL || 'http://localhost:5173/certification',
 };

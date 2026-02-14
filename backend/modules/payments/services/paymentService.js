@@ -31,6 +31,16 @@ export async function createCheckoutSession({ token, email, fullName }) {
           },
           quantity: 1,
         },
+        {
+          price_data: {
+            currency: STRIPE_CONFIG.currency,
+            product_data: {
+              name: 'Tax',
+            },
+            unit_amount: Math.round(STRIPE_CONFIG.certificationPrice * STRIPE_CONFIG.taxRate),
+          },
+          quantity: 1,
+        },
       ],
       mode: 'payment',
       success_url: `${STRIPE_CONFIG.successUrl}/${token}?payment=success&session_id={CHECKOUT_SESSION_ID}`,

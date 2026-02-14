@@ -17,7 +17,9 @@ export async function createPayPalOrder({ token, email, fullName }) {
   const accessToken = await getAccessToken();
 
   // Price in dollars (STRIPE_CONFIG.certificationPrice is in cents)
-  const priceUsd = (STRIPE_CONFIG.certificationPrice / 100).toFixed(2);
+  const basePrice = (STRIPE_CONFIG.certificationPrice / 100);
+  const taxAmount = (basePrice * STRIPE_CONFIG.taxRate);
+  const totalPrice = (basePrice + taxAmount).toFixed(2);
 
   const orderPayload = {
     intent: 'CAPTURE',
@@ -28,8 +30,22 @@ export async function createPayPalOrder({ token, email, fullName }) {
         custom_id: token, // stored on PayPal side, returned in capture
         amount: {
           currency_code: PAYPAL_CONFIG.currency,
-          value: priceUsd,
+          value: totalPrice,
+          breakdown: {
+            item_total: { currency_code: PAYPAL_CONFIG.currency, value: basePrice.toFixed(2) },
+            tax_total: { currency_code: PAYPAL_CONFIG.currency, value: taxAmount.toFixed(2) },
+          },
         },
+        items: [
+          {
+            name: 'Remote Work Professional Certification',
+            description: 'Official digital certificate with lifetime validity',
+            unit_amount: { currency_code: PAYPAL_CONFIG.currency, value: basePrice.toFixed(2) },
+            quantity: '1',
+            category: 'DIGITAL_GOODS',
+            tax: { currency_code: PAYPAL_CONFIG.currency, value: taxAmount.toFixed(2) },
+          },
+        ],
       },
     ],
     payment_source: {
