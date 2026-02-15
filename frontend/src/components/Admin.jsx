@@ -198,6 +198,21 @@ function Admin() {
             Manually send a specific funnel stage email to a recipient.
           </p>
 
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              onClick={() => { setEmail('shirley.bennett7070@gmail.com'); setName('Shirley'); }}
+              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-gray-300 rounded-lg transition-all"
+            >
+              shirley.bennett7070@gmail.com
+            </button>
+            <button
+              onClick={() => { setEmail('random.media1911@gmail.com'); setName(''); }}
+              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-gray-300 rounded-lg transition-all"
+            >
+              random.media1911@gmail.com
+            </button>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 mb-5">
             <input
               type="email"

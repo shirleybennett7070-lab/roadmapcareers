@@ -8,6 +8,21 @@ import { getAllJobs } from '../../jobs/services/sheetsService.js';
 
 // Base URL for the frontend - change this for production
 const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const WEBSITE_URL = 'https://roadmapcareers.com';
+const LOGO_URL = `${WEBSITE_URL}/assets/brandmark-DNhgHwKe.png`;
+const ABOUT_URL = `${WEBSITE_URL}/about`;
+
+/**
+ * Shared email footer with logo, branding, and about link
+ */
+function getEmailFooter() {
+  return `Best regards,
+Katherine
+Sr. Talent Manager
+
+<a href="${ABOUT_URL}" style="text-decoration:none;"><img src="${LOGO_URL}" alt="" width="40" height="40" style="vertical-align:middle; margin-right:8px;" /><b style="color:#2563eb; font-size:16px; font-family:'Adineue PRO', 'Century Gothic', 'Futura', 'Trebuchet MS', Arial, sans-serif; font-weight:700;">roadmap careers<sup style="font-size:8px;">©</sup></b></a>
+katherine@roadmapcareers.com`;
+}
 
 /**
  * Get the best single job to feature in emails
@@ -135,10 +150,7 @@ This is an entry-level friendly position with an established company that provid
 
 Would you be interested in this role? If so, I can share the next steps to get you started.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -166,10 +178,7 @@ ${assessmentLink}
 
 This takes approximately 5 minutes to complete.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -197,10 +206,7 @@ I've noticed that many candidates who apply to similar positions with some sort 
 
 Are you open to completing a certification?
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -232,10 +238,7 @@ ${certificationLink}
 
 Once you pass the exam and receive your certificate please reply to me with your certificate ID, I need it to verify your certification, the next step will be a technical assessment which I will send to you directly.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -260,10 +263,7 @@ If you're still interested, I'd be happy to walk you through the next steps.
 
 Just let me know and I can get you started right away.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -300,10 +300,7 @@ This assessment typically takes 15-20 minutes to complete.
 
 Once completed, I'll follow up with relevant information.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 
@@ -332,10 +329,7 @@ Please fill out this quick form (takes about 2 minutes):
 
 Once submitted, I'll follow up with the next steps right away.
 
-Best regards,
-Katherine
-Roadmap Careers
-katherine@roadmapcareers.com`
+${getEmailFooter()}`
   };
 }
 

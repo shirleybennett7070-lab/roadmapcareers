@@ -19,6 +19,13 @@ export default function Footer({ minimal = false }) {
           {/* Company Info */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-3">Roadmap Careers ©</h3>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li>
+                <a href="/about" className="hover:text-blue-600 transition-colors">
+                  About Us
+                </a>
+              </li>
+            </ul>
           </div>
 
           {/* Quick Links */}

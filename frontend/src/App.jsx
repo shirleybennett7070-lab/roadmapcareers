@@ -9,13 +9,19 @@ import CertificateView from './components/CertificateView';
 import JobDetails from './components/JobDetails';
 import CandidateIntake from './components/CandidateIntake';
 import Admin from './components/Admin';
+import About from './components/About';
+import Careers from './components/Careers';
 
 function App() {
   const currentPath = window.location.pathname;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {currentPath === '/admin' ? (
+      {currentPath === '/about' ? (
+        <About />
+      ) : currentPath === '/careers' ? (
+        <Careers />
+      ) : currentPath === '/admin' ? (
         <Admin />
       ) : currentPath.startsWith('/certification/result') ? (
         <CertificationResult />

@@ -40,9 +40,6 @@ router.post('/complete', async (req, res) => {
       };
     }
 
-    // Store answers in notes
-    const answersNote = answers ? `\nSkill Assessment Answers: ${JSON.stringify(answers)}` : '';
-
     // Calculate when to send the follow-up email
     const pendingEmailTime = new Date(Date.now() + EMAIL_DELAY_MS).toISOString();
     const delayMinutes = EMAIL_DELAY_MS / 60000;
@@ -54,7 +51,7 @@ router.post('/complete', async (req, res) => {
       skillAssessmentCompleted: true,
       pendingEmailTime: pendingEmailTime,
       pendingEmailType: 'assessment_review',
-      notes: `${lead.notes || ''}\nSkill assessment completed: ${new Date().toISOString()}${answersNote}`
+      notes: `${lead.notes || ''}\nSkill assessment completed: ${new Date().toISOString()}`
     });
 
     console.log(`  ✓ Lead updated to SKILL_ASSESSMENT_COMPLETED`);

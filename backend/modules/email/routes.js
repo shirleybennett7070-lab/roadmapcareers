@@ -488,33 +488,13 @@ router.post('/intake/submit', async (req, res) => {
       };
     }
     
-    // Build intake info for notes
-    const intakeInfo = [
-      `\nIntake completed: ${new Date().toISOString()}`,
-      fullName ? `Full Name: ${fullName}` : '',
-      dob ? `Date of Birth: ${dob}` : '',
-      phone ? `Phone: ${phone}` : '',
-      cityState ? `Location: ${cityState}` : '',
-      linkedin ? `LinkedIn: ${linkedin}` : '',
-
-      education ? `Education: ${education}` : '',
-      experience ? `Experience: ${experience}` : '',
-      skills ? `Skills: ${skills}` : '',
-      salaryExpectation ? `Salary Expectation: ${salaryExpectation}` : '',
-      availability ? `Availability: ${availability}` : '',
-      workAuthorization ? `Work Authorization: ${workAuthorization}` : '',
-      whyInterested ? `Why Interested: ${whyInterested}` : '',
-      referral ? `Referral Source: ${referral}` : '',
-      `Consent to Represent: YES`
-    ].filter(Boolean).join('\n');
-    
     // Update lead to intake completed and schedule assessment offer email
     const sendTime = new Date(Date.now() + 60 * 1000); // Send in 1 minute
     await upsertLead({
       ...lead,
       name: fullName || lead.name,
       stage: moveToStage.intakeCompleted(),
-      notes: `${lead.notes || ''}${intakeInfo}`,
+      notes: `${lead.notes || ''}\nIntake completed: ${new Date().toISOString()}`,
       pendingEmailType: 'assessment_offer',
       pendingEmailTime: sendTime.toISOString(),
     });
