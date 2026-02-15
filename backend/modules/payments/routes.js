@@ -11,8 +11,43 @@ import {
 import { isPayPalConfigured } from './config/paypal.js';
 import { getExamResultByToken, updatePaymentStatus } from '../certifications/services/certificationsService.js';
 import { STRIPE_CONFIG } from './config/stripe.js';
+import { getPaymentConfirmationTemplate } from '../email/services/templates.js';
+import { sendEmail } from '../email/config/gmail.js';
+import { getLead, upsertLead, moveToStage } from '../email/services/leadsService.js';
 
 const router = express.Router();
+
+/**
+ * Send post-payment confirmation email and update lead to PAID stage
+ */
+async function sendPaymentConfirmationEmail(email, fullName) {
+  try {
+    // Get the lead to find their name and existing data
+    const lead = await getLead(email);
+    const name = lead?.name || fullName || '';
+
+    // Get and send the confirmation email
+    const template = await getPaymentConfirmationTemplate(name);
+    await sendEmail(email, template.subject, template.body);
+    console.log(`  ✉️  Payment confirmation email sent to ${email}`);
+
+    // Update lead to STAGE_7_PAID
+    await upsertLead({
+      email,
+      name,
+      stage: moveToStage.paid(),
+      paymentStatus: 'completed',
+      quizScore: lead?.quizScore,
+      notes: lead?.notes || '',
+      assessmentCompleted: lead?.assessmentCompleted,
+      skillAssessmentCompleted: lead?.skillAssessmentCompleted,
+    });
+    console.log(`  ✓ Lead ${email} updated to PAID stage`);
+  } catch (error) {
+    // Don't let email failure break the payment flow
+    console.error(`  ⚠️  Failed to send payment confirmation email to ${email}:`, error.message);
+  }
+}
 
 /**
  * POST /api/payments/create-checkout-session
@@ -92,6 +127,12 @@ router.post('/verify', async (req, res) => {
     // Update payment status in database
     const result = await updatePaymentStatus(verification.token, 'completed');
 
+    // Get exam result to find email/name for confirmation email
+    const examResult = await getExamResultByToken(verification.token);
+    if (examResult) {
+      await sendPaymentConfirmationEmail(examResult.email, examResult.fullName);
+    }
+
     res.json({
       success: true,
       paid: true,
@@ -126,8 +167,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     // Handle successful payment
     if (event.type === 'payment_success') {
-      await updatePaymentStatus(event.token, 'completed');
+      const result = await updatePaymentStatus(event.token, 'completed');
       console.log(`✅ Payment completed for token: ${event.token}`);
+
+      // Send confirmation email
+      const examResult = await getExamResultByToken(event.token);
+      if (examResult) {
+        await sendPaymentConfirmationEmail(examResult.email, examResult.fullName);
+      }
     }
 
     res.json({ received: true });
@@ -205,6 +252,12 @@ router.post('/paypal/capture-order', async (req, res) => {
     const result = await updatePaymentStatus(capture.token, 'completed');
 
     console.log(`✅ PayPal payment completed for token: ${capture.token}`);
+
+    // Send confirmation email
+    const examResult = await getExamResultByToken(capture.token);
+    if (examResult) {
+      await sendPaymentConfirmationEmail(examResult.email, examResult.fullName);
+    }
 
     res.json({
       success: true,

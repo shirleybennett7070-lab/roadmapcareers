@@ -30,6 +30,7 @@ import assessmentRouter from './modules/assessment/routes.js';
 import skillAssessmentRouter from './modules/skillAssessment/routes.js';
 import certificationsRouter from './modules/certifications/routes.js';
 import paymentsRouter from './modules/payments/routes.js';
+import technicalAssessmentRouter from './modules/technicalAssessment/routes.js';
 
 // Import email processor for cron job
 import { processInbox, processPendingEmails } from './modules/email/services/emailProcessor.js';
@@ -56,6 +57,7 @@ app.use('/api/assessment', assessmentRouter);
 app.use('/api/skill-assessment', skillAssessmentRouter);
 app.use('/api/certifications', certificationsRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/technical-assessment', technicalAssessmentRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -87,6 +89,7 @@ app.listen(PORT, () => {
   console.log(`  POST /api/payments/create-checkout-session - Create Stripe checkout`);
   console.log(`  POST /api/payments/verify - Verify payment`);
   console.log(`  GET  /api/payments/config - Get Stripe config`);
+  console.log(`  POST /api/technical-assessment/complete - Complete technical assessment`);
   
   // Start email processing cron job
   startEmailCron();

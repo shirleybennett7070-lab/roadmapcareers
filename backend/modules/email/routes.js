@@ -2,7 +2,7 @@ import express from 'express';
 import { processInbox } from './services/emailProcessor.js';
 import { getAllLeads, getLead, upsertLead, initializeLeadsSheet, moveToStage } from './services/leadsService.js';
 import { sendEmail, getAuthUrl, exchangeCodeForTokens, getTokenBase64 } from './config/gmail.js';
-import { getAssessmentReviewTemplate, getAssessmentOfferTemplate, getInitialResponseTemplate, getTrainingOfferTemplate, getSkillAssessmentOfferTemplate, getIntakeRequestTemplate } from './services/templates.js';
+import { getAssessmentReviewTemplate, getAssessmentOfferTemplate, getInitialResponseTemplate, getTrainingOfferTemplate, getSkillAssessmentOfferTemplate, getIntakeRequestTemplate, getPaymentConfirmationTemplate, getRejectionTemplate } from './services/templates.js';
 
 const router = express.Router();
 
@@ -451,6 +451,103 @@ router.post('/send-intake-request', async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending intake request:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/email/send-payment-confirmation
+ * Send payment confirmation / technical assessment email to a specific address
+ */
+router.post('/send-payment-confirmation', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address is required'
+      });
+    }
+    
+    // Get payment confirmation template
+    const template = await getPaymentConfirmationTemplate(name || email.split('@')[0]);
+    
+    // Send email
+    await sendEmail(email, template.subject, template.body);
+    
+    // Create or update lead
+    const leadData = {
+      email,
+      name: name || email.split('@')[0],
+      stage: moveToStage.paid(),
+      paymentStatus: 'completed',
+      lastContactDate: new Date().toISOString(),
+      notes: 'Payment confirmation sent manually'
+    };
+    
+    await upsertLead(leadData);
+    
+    res.json({
+      success: true,
+      message: `Payment confirmation email sent to ${email}`,
+      email,
+      subject: template.subject
+    });
+  } catch (error) {
+    console.error('Error sending payment confirmation:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/email/send-rejection
+ * Send rejection email to a specific address
+ */
+router.post('/send-rejection', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address is required'
+      });
+    }
+    
+    // Get rejection template
+    const template = await getRejectionTemplate(name || email.split('@')[0]);
+    
+    // Send email
+    await sendEmail(email, template.subject, template.body);
+    
+    // Update lead to dropped
+    const leadData = {
+      email,
+      name: name || email.split('@')[0],
+      stage: moveToStage.dropped(),
+      lastContactDate: new Date().toISOString(),
+      pendingEmailTime: null,
+      pendingEmailType: null,
+      notes: 'Rejection email sent manually'
+    };
+    
+    await upsertLead(leadData);
+    
+    res.json({
+      success: true,
+      message: `Rejection email sent to ${email}`,
+      email,
+      subject: template.subject
+    });
+  } catch (error) {
+    console.error('Error sending rejection email:', error);
     res.status(500).json({
       success: false,
       error: error.message

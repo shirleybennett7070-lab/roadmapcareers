@@ -8,6 +8,7 @@ import CertificateVerification from './components/CertificateVerification';
 import CertificateView from './components/CertificateView';
 import JobDetails from './components/JobDetails';
 import CandidateIntake from './components/CandidateIntake';
+import TechnicalAssessment from './components/TechnicalAssessment';
 import Admin from './components/Admin';
 import About from './components/About';
 import Careers from './components/Careers';
@@ -37,6 +38,8 @@ function App() {
         <JobDetails />
       ) : currentPath === '/intake' ? (
         <CandidateIntake />
+      ) : currentPath === '/technical-assessment' ? (
+        <TechnicalAssessment />
       ) : currentPath === '/skill-assessment' ? (
         <SkillAssessment />
       ) : currentPath === '/assessment' || currentPath === '/' ? (

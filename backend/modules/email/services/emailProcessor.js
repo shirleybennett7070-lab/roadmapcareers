@@ -1,6 +1,6 @@
 import { readUnreadEmails, sendEmail, markAsRead } from '../config/gmail.js';
 import { getLead, upsertLead, LEAD_STAGES, getInitialStage, getNextStage, moveToStage, getLeadsWithPendingEmails } from './leadsService.js';
-import { getTemplateForStage, getSkillAssessmentOfferTemplate, getAssessmentReviewTemplate, getAssessmentOfferTemplate } from './templates.js';
+import { getTemplateForStage, getSkillAssessmentOfferTemplate, getAssessmentReviewTemplate, getAssessmentOfferTemplate, getRejectionTemplate } from './templates.js';
 
 /**
  * Simplified email processor for Customer Service training funnel
@@ -314,6 +314,9 @@ export async function processPendingEmails() {
         } else if (lead.pendingEmailType === 'assessment_review') {
           template = await getAssessmentReviewTemplate(lead.name);
           newStage = moveToStage.softPitchSent(); // Update stage after sending soft pitch
+        } else if (lead.pendingEmailType === 'rejection') {
+          template = await getRejectionTemplate(lead.name);
+          newStage = moveToStage.dropped(); // Move to dropped after rejection
         }
         
         if (template) {

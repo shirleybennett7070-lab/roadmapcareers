@@ -101,8 +101,9 @@ function formatJobListing(job) {
   const jobDetailsUrl = buildJobUrl('/job-details', job);
   const salaryLine = job.salaryRange && job.salaryRange !== 'Not specified' ? `\n   Pay: ${job.salaryRange}` : '';
   return `<b>${job.title}</b>
-   Company: ${job.company}${salaryLine}
-   Location: ${job.location}
+   Company/Client: ${job.company}${salaryLine}
+   Company/Client Location: ${job.location}
+   Type: Full Time | Fully Remote
    <a href="${jobDetailsUrl}">View Details</a>`;
 }
 
@@ -111,7 +112,7 @@ function formatJobListing(job) {
  */
 function formatJobWithAction(job, actionPath, actionText) {
   const actionUrl = buildJobUrl(actionPath, job);
-  return `<b>${job.title}</b> (${job.category || 'Entry Level'} | Remote)
+  return `<b>${job.title}</b> (Full Time | Fully Remote)
    <a href="${actionUrl}"><b>${actionText}</b></a>`;
 }
 
@@ -144,11 +145,42 @@ export async function getInitialResponseTemplate(name) {
 
 Thank you for your interest in the remote opportunities.
 
+I'm currently looking for candidates to fill the following role:
+
 ${jobListing}
 
-This is an entry-level friendly position with an established company that provides training for qualified candidates.
+This is an entry-level friendly position with an established company that provides training for qualified candidates and is fully remote.
 
 Would you be interested in this role? If so, I can share the next steps to get you started.
+
+${getEmailFooter()}`
+  };
+}
+
+/**
+ * STAGE 1B: Intake Request Template
+ * Asks candidate to fill out intake form with info + consent to represent
+ */
+export async function getIntakeRequestTemplate(name) {
+  const greeting = name ? `Hi ${name}` : 'Hello';
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+
+  const intakeUrl = buildJobUrl('/intake', job);
+
+  return {
+    subject: 'Re: Next Step - Candidate Intake',
+    body: `${greeting},
+
+Before we proceed, I need to collect a few details so I can represent you for this role:
+
+${jobListing}
+
+Please fill out this quick form (takes about 2 minutes):
+
+<a href="${intakeUrl}"><b>Complete Intake</b></a>
+
+Once submitted, I'll follow up with the next steps right away.
 
 ${getEmailFooter()}`
   };
@@ -170,7 +202,7 @@ export async function getAssessmentOfferTemplate(name) {
 
 
 Next Steps:
-Are you willing to complete a brief assessment? This helps me understand your background for the job that you are interested in:
+To move forward, please complete this brief candidate assessment. This helps me better evaluate your fit for the role you're interested in:
 
 ${jobListing}
 
@@ -183,7 +215,44 @@ ${getEmailFooter()}`
 }
 
 /**
- * STAGE 4: Assessment Review / Soft Pitch Template
+ * STAGE 3: Skill Assessment Offer Template
+ * Sent automatically after candidate assessment completion
+ */
+export async function getSkillAssessmentOfferTemplate(name) {
+  const greeting = name ? `Hi ${name}` : 'Hello';
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+  const skillAssessmentLink = formatJobWithAction(job, '/skill-assessment', 'Take Skills Assessment');
+  
+  return {
+    subject: 'Re: Next Step - Skills Assessment',
+    body: `${greeting},
+
+Thank you for completing the initial assessment!
+
+Next Steps:
+To continue, please complete the skills assessment so I can evaluate your qualifications for the role you're interested in:
+
+${jobListing}
+
+${skillAssessmentLink}
+
+The skills assessment includes:
+- Real-world remote work scenarios
+- Problem-solving questions
+- Written communication exercises
+- Time management and organization challenges
+
+This assessment typically takes 15-20 minutes to complete.
+
+Once completed, I'll follow up with relevant information.
+
+${getEmailFooter()}`
+  };
+}
+
+/**
+ * STAGE 5: Assessment Review / Soft Pitch Template
  * Reviews assessment and hints at certification
  */
 export async function getAssessmentReviewTemplate(name) {
@@ -202,7 +271,7 @@ I've reviewed your responses and wanted to reach out personally. Based on what I
 ${jobListing}
 
 However, I noticed your resume doesn't list any certifications related to this role.
-I've noticed that many candidates who apply to similar positions with some sort of certification tend to demonstrate greater readiness to potential employers.
+Many of the candidates I've worked with who landed similar roles had a relevant certification — it tends to signal readiness to clients and can give you a real advantage.
 
 Are you open to completing a certification?
 
@@ -211,7 +280,7 @@ ${getEmailFooter()}`
 }
 
 /**
- * STAGE 5: Training/Certification Offer Template
+ * STAGE 6: Training/Certification Offer Template
  * Offers certification with link to our certification page
  */
 export async function getTrainingOfferTemplate(name, quizScore) {
@@ -230,7 +299,7 @@ ${jobListing}
 
 Next Steps:
 
-This quick certification helps document your preparation for the role. It's also a great asset for other remote positions — many employers look for candidates who can demonstrate readiness through certifications like this.
+Completing this certification shows the client and employers you're prepared for the role, It's also a great asset for other remote positions and it's something you can carry with you. Many hiring managers look for certifications like this when evaluating candidates for remote positions.
 
 Please note there is a small fee associated with the certification. You will find details in the link
 
@@ -243,7 +312,41 @@ ${getEmailFooter()}`
 }
 
 /**
- * STAGE 7: Follow Up Template
+ * STAGE 7: Payment Confirmation / Technical Assessment Template
+ * Sent after successful payment - congratulates on certification and introduces technical assessment
+ */
+export async function getPaymentConfirmationTemplate(name) {
+  const greeting = name ? `Hi ${name}` : 'Hello';
+  const job = getJobOrFallback(await getTopJob());
+  const jobListing = formatJobListing(job);
+  const technicalAssessmentLink = formatJobWithAction(job, '/technical-assessment', 'Take Technical Assessment');
+  
+  return {
+    subject: 'Re: Next Steps - Technical Assessment',
+    body: `${greeting},
+
+Congratulations on passing the exam and earning your certification!
+
+This is a great step forward — it shows our clients and any future employers you work with that you're prepared and serious about the role:
+
+${jobListing}
+
+Next Steps:
+
+The next part of the process is a technical assessment. This assessment helps our clients evaluate your hands-on technical skills for the position.
+
+${technicalAssessmentLink}
+
+Please note:
+- 20 technical questions, 30-minute time limit
+- You cannot go back to previous questions
+
+${getEmailFooter()}`
+  };
+}
+
+/**
+ * STAGE 8: Follow Up Template
  * Re-engages leads who haven't responded
  */
 export async function getFollowUpTemplate(name) {
@@ -268,66 +371,25 @@ ${getEmailFooter()}`
 }
 
 /**
- * Skill Assessment Offer Template
- * Sent automatically after candidate assessment completion (Stage 2 -> Stage 3)
+ * REJECTION: Post-Technical Assessment Rejection Template
+ * Sent 5 days after technical assessment completion - personal and polite
  */
-export async function getSkillAssessmentOfferTemplate(name) {
+export async function getRejectionTemplate(name) {
   const greeting = name ? `Hi ${name}` : 'Hello';
-  const job = getJobOrFallback(await getTopJob());
-  const jobListing = formatJobListing(job);
-  const skillAssessmentLink = formatJobWithAction(job, '/skill-assessment', 'Take Skills Assessment');
   
   return {
-    subject: 'Re: Next Step - Skills Assessment',
+    subject: 'Re: Update on Your Application',
     body: `${greeting},
 
-Thank you for completing the initial assessment!
+Thank you so much for taking the time to complete the full assessment process. I truly appreciate the effort you put in, and I want you to know that your interest in this role meant a lot.
 
-Next Steps:
-Are you willing to complete a skill assessment? This helps me understand your skills for the role:
+After careful review, I'm sorry to let you know that we won't be able to move forward with your application for this particular position at this time. This was not an easy decision — we had a strong pool of candidates.
 
-${jobListing}
+That said, this does not reflect on your potential. I'd encourage you to continue building your skills, and I'll keep your information on file in case a role that's a better fit comes up in the future.
 
-${skillAssessmentLink}
+If you have any questions or would like feedback, please don't hesitate to reach out. I'm happy to help however I can.
 
-The skills assessment includes:
-- Real-world remote work scenarios
-- Problem-solving questions
-- Written communication exercises
-- Time management and organization challenges
-
-This assessment typically takes 15-20 minutes to complete.
-
-Once completed, I'll follow up with relevant information.
-
-${getEmailFooter()}`
-  };
-}
-
-/**
- * STAGE 1B: Intake Request Template
- * Asks candidate to fill out intake form with info + consent to represent
- */
-export async function getIntakeRequestTemplate(name) {
-  const greeting = name ? `Hi ${name}` : 'Hello';
-  const job = getJobOrFallback(await getTopJob());
-  const jobListing = formatJobListing(job);
-
-  const intakeUrl = buildJobUrl('/intake', job);
-
-  return {
-    subject: 'Re: Next Step - Candidate Intake',
-    body: `${greeting},
-
-Great to hear you're interested! Before we proceed, I need to collect a few details so I can represent you for this role:
-
-${jobListing}
-
-Please fill out this quick form (takes about 2 minutes):
-
-<a href="${intakeUrl}"><b>Complete Intake/b></a>
-
-Once submitted, I'll follow up with the next steps right away.
+I wish you all the best in your job search, and I'm confident you'll find the right opportunity.
 
 ${getEmailFooter()}`
   };
@@ -359,6 +421,9 @@ export async function getTemplateForStage(stage, leadData) {
       
     case LEAD_STAGES.STAGE_6_TRAINING_OFFERED:
       return await getTrainingOfferTemplate(name, quizScore);
+
+    case LEAD_STAGES.STAGE_7_PAID:
+      return await getPaymentConfirmationTemplate(name);
       
     case LEAD_STAGES.STAGE_8_FOLLOW_UP:
       return await getFollowUpTemplate(name);

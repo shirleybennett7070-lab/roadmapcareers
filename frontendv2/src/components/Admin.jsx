@@ -8,6 +8,8 @@ const EMAIL_STAGES = [
   { key: 'skill-assessment', label: 'Stage 4: Skill Assessment', endpoint: '/api/email/send-skill-assessment', color: 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/30' },
   { key: 'soft-pitch', label: 'Stage 5: Soft Pitch', endpoint: '/api/email/send-soft-pitch', color: 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/30' },
   { key: 'training-offer', label: 'Stage 6: Training Offer', endpoint: '/api/email/send-training-offer', color: 'bg-orange-600 hover:bg-orange-500 shadow-orange-900/30' },
+  { key: 'payment-confirmation', label: 'Stage 7: Payment Confirm + Tech Assessment', endpoint: '/api/email/send-payment-confirmation', color: 'bg-green-600 hover:bg-green-500 shadow-green-900/30' },
+  { key: 'rejection', label: 'Rejection Email', endpoint: '/api/email/send-rejection', color: 'bg-red-600 hover:bg-red-500 shadow-red-900/30' },
 ];
 
 function Admin() {
